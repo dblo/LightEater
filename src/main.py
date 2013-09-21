@@ -5,54 +5,58 @@ from pygame.locals import *
 
 pygame.init()
 
-WIDTH       = 1000 #1920
-HEIGHT      = 600 #1080
 FPS         = 30
-NUMROWS     = 3
-NUMCOLS     = 4
-TOPAREA     = (WIDTH * 19) / 20 + ((HEIGHT - (WIDTH * 19) / 20)) % NUMROWS
-SECTORSIZE  = (HEIGHT - TOPAREA) / NUMROWS
-XMARGIN     = (WIDTH - SECTORSIZE*NUMCOLS) / 2
+NUMROWS     = 4
+NUMCOLS     = 8
+TILESIZE    = 30
+WIDTH       = NUMCOLS * TILESIZE + 100
+HEIGHT      = NUMROWS * TILESIZE + 100
+YMARGIN     = (HEIGHT - TILESIZE * NUMROWS) / 2
+XMARGIN     = (WIDTH - TILESIZE * NUMCOLS) / 2 
+
+# assert YMARGIN + SECTORSIZE*NUMROWS == HEIGHT, "Height inconsistency"
+# assert XMARGIN*2 + SECTORSIZE*NUMCOLS == WIDTH, "Width inconsistency"
 
 BLACK   = (0,   0,   0)
 WHITE   = (255, 255, 255)
 RED     = (255, 0,   0)
-GREEN   = (0,   255, 0)
+GRAY    = (100, 100, 100)
+GREEN   = (0,   255,   0)
 BLUE    = (0,   0,   255)
 
-DISPLAYSURF = pygame.display.set_mode((WIDTH, HEIGHT))
-
-def init():
-    pass
-
 def main():
+    DISPLAYSURF = pygame.display.set_mode((WIDTH, HEIGHT))
     anisurf = pygame.Surface((WIDTH, HEIGHT)).convert_alpha()
     fpsClock = pygame.time.Clock()
 
-    alphas = []
-    rects = []
+    level = []
+    for cols in range(NUMCOLS):
+        level.append([])
+        for rows in range(NUMROWS):
+            level[cols].append(0)
+
+    pygame.display.set_caption("Splinter block")
+
     while 1:
-        DISPLAYSURF.fill(WHITE)
-        anisurf.fill(WHITE)
+        DISPLAYSURF.fill(BLACK)
+        anisurf.fill(BLACK)
 
         for event in pygame.event.get():
-            if event.type == MOUSEBUTTONUP:
-                mousex, mousey = event.pos
-                rects.append(pygame.Rect(mousex, mousey, 30, 54))
-                alphas.append(255)
-            elif event.type == QUIT:
+            # if event.type == KEYUP:
+            #     if event.key == K_LEFT:
+
+            if event.type == QUIT:
                 pygame.quit()
                 sys.exit()
 
-        i = len(rects)-1
-        for r in range(len(rects)-1, -1, -1):
-            pygame.draw.rect(anisurf, (255,0,0, alphas[i]), rects[r])
-            if alphas[i] == 1:
-                del rects[i]
-                del alphas[i]
-            else:
-                alphas[i] = alphas[i]-1
-                i = i-1
+        for row in range(NUMROWS):
+            for col in range(NUMCOLS):
+                tileRect = pygame.Rect(col * TILESIZE + XMARGIN, row * TILESIZE + YMARGIN,
+                    TILESIZE, TILESIZE)
+                if level[col][row] == 0:
+                    pygame.draw.rect(anisurf, GRAY, tileRect)
+                else:
+                    pygame.draw.rect(anisurf, GREEN, tileRect)
 
         DISPLAYSURF.blit(anisurf, (0,0))
         pygame.display.update()
