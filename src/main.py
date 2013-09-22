@@ -6,14 +6,16 @@ from pygame.locals import *
 pygame.init()
 
 FPS         = 30
-NUMROWS     = 4
-NUMCOLS     = 8
+NUMROWS     = 6
+NUMCOLS     = 10
 TILESIZE    = 30
 WIDTH       = NUMCOLS * TILESIZE + 100
 HEIGHT      = NUMROWS * TILESIZE + 100
 YMARGIN     = (HEIGHT - TILESIZE * NUMROWS) / 2
 XMARGIN     = (WIDTH - TILESIZE * NUMCOLS) / 2 
+PLAYERSPEED = TILESIZE / 6
 
+assert TILESIZE % PLAYERSPEED == 0, "Bad tilesize - playerspeed ratio"
 # assert YMARGIN + SECTORSIZE*NUMROWS == HEIGHT, "Height inconsistency"
 # assert XMARGIN*2 + SECTORSIZE*NUMCOLS == WIDTH, "Width inconsistency"
 
@@ -29,11 +31,18 @@ def main():
     anisurf = pygame.Surface((WIDTH, HEIGHT)).convert_alpha()
     fpsClock = pygame.time.Clock()
 
-    level = []
-    for cols in range(NUMCOLS):
-        level.append([])
-        for rows in range(NUMROWS):
-            level[cols].append(0)
+    level = [ [0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 1, 0],
+    [0, 1, 1, 1, 1, 0],
+    [0, 1, 0, 0, 1, 0],
+    [0, 1, 1, 1, 1, 0],
+    [0, 1, 1, 0, 1, 0],
+    [0, 1, 0, 0, 0, 0],
+    [0, 1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0, 0] ]
+
+    player1 = pygame.Rect(XMARGIN + TILESIZE, YMARGIN + TILESIZE, 5, 5)
 
     pygame.display.set_caption("Splinter block")
 
@@ -42,8 +51,15 @@ def main():
         anisurf.fill(BLACK)
 
         for event in pygame.event.get():
-            # if event.type == KEYUP:
-            #     if event.key == K_LEFT:
+            if event.type == KEYUP:
+                if event.key == K_LEFT :
+                    player1.left -= PLAYERSPEED
+                if event.key == K_RIGHT :
+                    player1.left += PLAYERSPEED
+                if event.key == K_UP :
+                    player1.top -= PLAYERSPEED
+                if event.key == K_DOWN :
+                    player1.top += PLAYERSPEED
 
             if event.type == QUIT:
                 pygame.quit()
@@ -55,12 +71,18 @@ def main():
                     TILESIZE, TILESIZE)
                 if level[col][row] == 0:
                     pygame.draw.rect(anisurf, GRAY, tileRect)
-                else:
+                elif level[col][row] == 1:
                     pygame.draw.rect(anisurf, GREEN, tileRect)
+                
+
+        pygame.draw.rect(anisurf, BLUE, player1)
 
         DISPLAYSURF.blit(anisurf, (0,0))
         pygame.display.update()
         fpsClock.tick()
+
+def validPos(x, y, level):
+    pass
 
 if __name__ == '__main__':
     main()
