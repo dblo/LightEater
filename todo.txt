@@ -1,9 +1,6 @@
-difficulties, ai
 show controls during loading map, push click to start
-on game start each team control only spawn sector. During first minute, captured sectors are show with bug delay or somesuch.
-
 shadow map > ray casting/tracing?
-
 instead of progress bar capture, fade in color over all structures
 
 
+PLAN:
