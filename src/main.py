@@ -15,6 +15,7 @@ YMARGIN     = (HEIGHT - TILESIZE * NUMROWS) / 2
 XMARGIN     = (WIDTH - TILESIZE * NUMCOLS) / 2 
 PLAYERSPEED = 2
 PLAYERSIZE  = 10
+WALL        = 0
 
 assert TILESIZE % PLAYERSPEED == 0, "Bad tilesize - playerspeed ratio"
 # assert YMARGIN + SECTORSIZE*NUMROWS == HEIGHT, "Height inconsistency"
@@ -48,82 +49,116 @@ class Player:
     def setMovingDown(self, move):
         self.movingDown = move
 
+class Game:
+    def __init__(self):
+        self.player1 = Player(XMARGIN + TILESIZE, YMARGIN + TILESIZE)
+        self.level = [ [0, 0, 0, 0, 0, 0],
+        [0, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 1, 1, 1, 1, 0],
+        [0, 1, 0, 0, 1, 0],
+        [0, 1, 1, 1, 1, 0],
+        [0, 1, 1, 0, 1, 0],
+        [0, 1, 0, 0, 0, 0],
+        [0, 1, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0, 0] ]
+
+        pygame.display.set_caption("Splinter block")
+        self.run()
+
+    def run(self):
+        DISPLAYSURF = pygame.display.set_mode((WIDTH, HEIGHT))
+        anisurf     = pygame.Surface((WIDTH, HEIGHT)).convert_alpha()
+        fpsClock    = pygame.time.Clock()
+
+        while 1:
+            DISPLAYSURF.fill(BLACK)
+            anisurf.fill(BLACK)
+
+            for event in pygame.event.get():
+                if event.type == KEYDOWN:
+                    if event.key == K_LEFT :
+                        self.player1.setMovingLeft(True)
+                    if event.key == K_RIGHT :
+                        self.player1.setMovingRight(True)       
+                    if event.key == K_UP :
+                        self.player1.setMovingUp(True)                           
+                    if event.key == K_DOWN :
+                        self.player1.setMovingDown(True)       
+
+                if event.type == KEYUP:
+                    if event.key == K_LEFT :
+                        self.player1.setMovingLeft(False)
+                    if event.key == K_RIGHT :
+                        self.player1.setMovingRight(False)       
+                    if event.key == K_UP :
+                        self.player1.setMovingUp(False)                           
+                    if event.key == K_DOWN :
+                        self.player1.setMovingDown(False)       
+
+                if event.type == QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+            self.movePlayer(self.player1)
+
+            for row in range(NUMROWS):
+                for col in range(NUMCOLS):
+                    tileRect = pygame.Rect(col * TILESIZE + XMARGIN, row * TILESIZE + YMARGIN,
+                        TILESIZE, TILESIZE)
+                    if self.level[col][row] == 0:
+                        pygame.draw.rect(anisurf, GRAY, tileRect)
+                    elif self.level[col][row] == 1:
+                        pygame.draw.rect(anisurf, GREEN, tileRect)
+                    
+
+            pygame.draw.rect(anisurf, BLUE, pygame.Rect(self.player1.x, self.player1.y, 
+                PLAYERSIZE, PLAYERSIZE))
+
+            DISPLAYSURF.blit(anisurf, (0,0))
+            pygame.display.update()
+            fpsClock.tick(FPS)
+
+    def movePlayer(self, player):
+        rect = pygame.Rect(player.x - XMARGIN, player.y - YMARGIN, \
+            PLAYERSIZE-1, PLAYERSIZE-1)
+
+        if player.movingLeft:
+            if self.isWall(rect.left - PLAYERSPEED, rect.top) or \
+                self.isWall(rect.left - PLAYERSPEED, rect.bottom):
+                player.x -= rect.left % TILESIZE
+            else:
+                player.x -= PLAYERSPEED
+
+        if player.movingRight:
+            if self.isWall(rect.right + PLAYERSPEED, rect.top) or \
+                self.isWall(rect.right + PLAYERSPEED, rect.bottom):
+                player.x += PLAYERSPEED - (rect.right + PLAYERSPEED) \
+                % TILESIZE - 1
+            else:
+                player.x += PLAYERSPEED
+
+        if player.movingUp:
+            if self.isWall(rect.left, rect.top - PLAYERSPEED) or \
+                self.isWall(rect.right, rect.top - PLAYERSPEED):
+                player.y -= rect.top % TILESIZE
+            else:
+                player.y -= PLAYERSPEED
+
+        if player.movingDown:
+            if self.isWall(rect.left, rect.bottom + PLAYERSPEED) or \
+                self.isWall(rect.right, rect.bottom + PLAYERSPEED):
+                player.y += PLAYERSPEED - (rect.bottom + PLAYERSPEED) \
+                % TILESIZE - 1
+            else:
+                player.y += PLAYERSPEED
+
+    # x, y coordinates without margins
+    def isWall(self, x, y):
+        return self.level[x / TILESIZE][y / TILESIZE] == WALL
+
 def main():
-    DISPLAYSURF = pygame.display.set_mode((WIDTH, HEIGHT))
-    anisurf = pygame.Surface((WIDTH, HEIGHT)).convert_alpha()
-    fpsClock = pygame.time.Clock()
-
-    level = [ [0, 0, 0, 0, 0, 0],
-    [0, 1, 1, 1, 1, 0],
-    [0, 0, 0, 0, 1, 0],
-    [0, 1, 1, 1, 1, 0],
-    [0, 1, 0, 0, 1, 0],
-    [0, 1, 1, 1, 1, 0],
-    [0, 1, 1, 0, 1, 0],
-    [0, 1, 0, 0, 0, 0],
-    [0, 1, 1, 1, 1, 0],
-    [0, 0, 0, 0, 0, 0] ]
-
-    player1 = Player(XMARGIN + TILESIZE, YMARGIN + TILESIZE)
-
-    pygame.display.set_caption("Splinter block")
-    while 1:
-        DISPLAYSURF.fill(BLACK)
-        anisurf.fill(BLACK)
-
-        for event in pygame.event.get():
-            if event.type == KEYDOWN:
-                if event.key == K_LEFT :
-                    player1.setMovingLeft(True)
-                if event.key == K_RIGHT :
-                    player1.setMovingRight(True)       
-                if event.key == K_UP :
-                    player1.setMovingUp(True)                           
-                if event.key == K_DOWN :
-                    player1.setMovingDown(True)       
-
-            if event.type == KEYUP:
-                if event.key == K_LEFT :
-                    player1.setMovingLeft(False)
-                if event.key == K_RIGHT :
-                    player1.setMovingRight(False)       
-                if event.key == K_UP :
-                    player1.setMovingUp(False)                           
-                if event.key == K_DOWN :
-                    player1.setMovingDown(False)       
-
-            if event.type == QUIT:
-                pygame.quit()
-                sys.exit()
-
-        if player1.movingLeft:
-            player1.x -= PLAYERSPEED
-        if player1.movingRight:
-            player1.x += PLAYERSPEED
-        if player1.movingUp:
-            player1.y -= PLAYERSPEED
-        if player1.movingDown:
-            player1.y += PLAYERSPEED
-
-        for row in range(NUMROWS):
-            for col in range(NUMCOLS):
-                tileRect = pygame.Rect(col * TILESIZE + XMARGIN, row * TILESIZE + YMARGIN,
-                    TILESIZE, TILESIZE)
-                if level[col][row] == 0:
-                    pygame.draw.rect(anisurf, GRAY, tileRect)
-                elif level[col][row] == 1:
-                    pygame.draw.rect(anisurf, GREEN, tileRect)
-                
-
-        pygame.draw.rect(anisurf, BLUE, pygame.Rect(player1.x, player1.y, 
-            PLAYERSIZE, PLAYERSIZE))
-
-        DISPLAYSURF.blit(anisurf, (0,0))
-        pygame.display.update()
-        fpsClock.tick(FPS)
-
-def validPos(x, y, level):
-    pass
+    Game()
 
 if __name__ == '__main__':
     main()
