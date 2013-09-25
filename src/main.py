@@ -50,11 +50,13 @@ class Guard:
     def __init__(self, route, speed):
         self.route = route
         self.speed = speed
-        self.x = route[0][0] * TILESIZE + XMARGIN + TILESIZE / 2 - PLAYERSIZE / 2
-        self.y = route[0][1] * TILESIZE + YMARGIN + TILESIZE / 2 - PLAYERSIZE / 2
         self.currInstr = 1
-        self.goalX = route[1][0] * TILESIZE + XMARGIN + TILESIZE / 2 - PLAYERSIZE / 2
-        self.goalY = route[1][1] * TILESIZE + YMARGIN + TILESIZE / 2 - PLAYERSIZE / 2
+
+        offsetToCenter = TILESIZE / 2 - PLAYERSIZE / 2
+        self.x = route[0][0] * TILESIZE + XMARGIN + offsetToCenter
+        self.y = route[0][1] * TILESIZE + YMARGIN + offsetToCenter
+        self.goalX = route[1][0] * TILESIZE + XMARGIN + offsetToCenter
+        self.goalY = route[1][1] * TILESIZE + YMARGIN + offsetToCenter
 
     def move(self):
         if self.x < self.goalX:
@@ -75,8 +77,10 @@ class Guard:
 
         if self.x == self.goalX and self.y == self.goalY:
             self.currInstr = (self.currInstr + 1) % len(self.route)
-            self.goalX = self.route[self.currInstr][0] * TILESIZE + XMARGIN + TILESIZE / 2 - PLAYERSIZE / 2
-            self.goalY = self.route[self.currInstr][1] * TILESIZE + YMARGIN + TILESIZE / 2 - PLAYERSIZE / 2
+            self.goalX = self.route[self.currInstr][0] * TILESIZE + XMARGIN \
+                + TILESIZE / 2 - PLAYERSIZE / 2
+            self.goalY = self.route[self.currInstr][1] * TILESIZE + YMARGIN \
+                + TILESIZE / 2 - PLAYERSIZE / 2
 
 class Game:
     def __init__(self):
@@ -140,8 +144,9 @@ class Game:
 
             for row in range(NUMROWS):
                 for col in range(NUMCOLS):
-                    tileRect = pygame.Rect(col * TILESIZE + XMARGIN, row * TILESIZE + YMARGIN,
-                        TILESIZE, TILESIZE)
+                    tileRect = pygame.Rect(col * TILESIZE + XMARGIN, 
+                        row * TILESIZE + YMARGIN, TILESIZE, TILESIZE)
+                    
                     if self.level[col][row] == 0:
                         pygame.draw.rect(anisurf, GRAY, tileRect)
                     elif self.level[col][row] == 1:
