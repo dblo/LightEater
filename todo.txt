@@ -3,4 +3,11 @@ shadow map > ray casting/tracing?
 instead of progress bar capture, fade in color over all structures
 
 
-PLAN:
+MID:
+fog
+black unexplored
+agents chase
+agents stop/change pattern/speed
+switches/doors
+scrolling
+import map

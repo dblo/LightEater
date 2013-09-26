@@ -2,6 +2,8 @@
 
 import pygame, sys
 from pygame.locals import *
+# import libtcodpy as libtcod
+import fov as fov
 
 FPS         = 30
 NUMROWS     = 6
@@ -13,7 +15,11 @@ YMARGIN     = (HEIGHT - TILESIZE * NUMROWS) / 2
 XMARGIN     = (WIDTH - TILESIZE * NUMCOLS) / 2 
 PLAYERSPEED = 1
 PLAYERSIZE  = 10
+TILEPLAYERRATIO = TILESIZE / PLAYERSIZE
 WALL        = 0
+UNEXPLORED  = 0
+EXPLORED    = 1
+LIT         = 2
 
 BLACK   = (0,   0,   0)
 WHITE   = (255, 255, 255)
@@ -21,6 +27,7 @@ RED     = (255, 0,   0)
 GRAY    = (100, 100, 100)
 GREEN   = (0,   255,   0)
 BLUE    = (0,   0,   255)
+FOW     = (10, 170, 10, 125)
 assert TILESIZE % PLAYERSPEED == 0, "Bad tilesize - playerspeed ratio"
 # assert YMARGIN + SECTORSIZE*NUMROWS == HEIGHT, "Height inconsistency"
 # assert XMARGIN*2 + SECTORSIZE*NUMCOLS == WIDTH, "Width inconsistency"
@@ -89,7 +96,7 @@ class Game:
         self.player1 = Player(XMARGIN + TILESIZE, YMARGIN + TILESIZE)
         self.level = [ [0, 0, 0, 0, 0, 0],
         [0, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 1, 0],
+        [0, 1, 0, 0, 1, 0],
         [0, 1, 1, 1, 1, 0],
         [0, 1, 0, 0, 1, 0],
         [0, 1, 1, 1, 1, 0],
@@ -101,6 +108,17 @@ class Game:
         self.guards = []
         self.guards.append(Guard(((3,1), (3,4), (5,4), (5,1)), 1))
 
+        self.detLevel = [[0 for j in range(NUMROWS * TILEPLAYERRATIO)] \
+                    for i in range(NUMCOLS * TILEPLAYERRATIO)]
+
+        for row in range(NUMROWS):
+            for col in range(NUMCOLS):
+                if self.level[col][row] == 1:
+                    for y in range(TILEPLAYERRATIO):
+                        for x in range(TILEPLAYERRATIO):
+                            self.detLevel[col * TILEPLAYERRATIO + x] \
+                                [row * TILEPLAYERRATIO + y] = 1
+
         pygame.display.set_caption("Splinter block")
         self.run()
 
@@ -108,6 +126,10 @@ class Game:
         DISPLAYSURF = pygame.display.set_mode((WIDTH, HEIGHT))
         anisurf     = pygame.Surface((WIDTH, HEIGHT)).convert_alpha()
         fpsClock    = pygame.time.Clock()
+        updateFovCounter = 0        
+        # fps = 0
+        fovMap = [[0 for j in range(NUMROWS * TILEPLAYERRATIO)] \
+                    for i in range(NUMCOLS * TILEPLAYERRATIO)]
 
         while 1:
             DISPLAYSURF.fill(BLACK)
@@ -142,6 +164,46 @@ class Game:
             for guard in self.guards:
                 guard.move()
 
+            def tileBlocked(x, y): 
+                return self.detLevel[x][y] == WALL
+            def markVisible(x, y): fovMap[x][y] = 1
+            def markLit(x, y):
+                if fovMap[x][y] == 1:
+                    fovMap[x][y] = 2
+
+            if updateFovCounter == 0:
+                fovMap = [[0 for j in range(NUMROWS * TILEPLAYERRATIO)] \
+                    for i in range(NUMCOLS * TILEPLAYERRATIO)]
+
+                xCoord = (self.player1.x - XMARGIN) / (TILESIZE / TILEPLAYERRATIO)
+                yCoord = (self.player1.y - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
+                
+                fov.fieldOfView(xCoord, yCoord, \
+                    NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, 6, \
+                    markVisible, tileBlocked)
+
+                for guard in self.guards:
+                    xCoord = (guard.x - XMARGIN) / (TILESIZE / TILEPLAYERRATIO)
+                    yCoord = (guard.y - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
+                    # print xCoord, yCoord
+
+                    fov.fieldOfView(xCoord, yCoord, \
+                        NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, 6, \
+                        markLit, tileBlocked)
+
+                updateFovCounter = FPS/2
+                # print fps
+                # fps = 0
+                
+                # for y in range(NUMROWS):
+                #     for x in range(NUMCOLS):
+                #         print fovMap[x][y], " ",
+                #     print " "
+                # print "======================"
+            else:
+                updateFovCounter -= 1
+                # fps += 1
+
             for row in range(NUMROWS):
                 for col in range(NUMCOLS):
                     tileRect = pygame.Rect(col * TILESIZE + XMARGIN, 
@@ -152,9 +214,27 @@ class Game:
                     elif self.level[col][row] == 1:
                         pygame.draw.rect(anisurf, GREEN, tileRect)
 
+                    for y in range(TILEPLAYERRATIO):
+                        for x in range(TILEPLAYERRATIO):
+                            fovMapX = col * TILEPLAYERRATIO + x
+                            fovMapY = row * TILEPLAYERRATIO + y
+
+                            if fovMap[fovMapX][fovMapY] < 2:
+                                tileRect = pygame.Rect(fovMapX * PLAYERSIZE + XMARGIN, 
+                                    fovMapY * PLAYERSIZE + YMARGIN, PLAYERSIZE, PLAYERSIZE)
+                                pygame.draw.rect(anisurf, (100, 100, 100, 100), tileRect)
+
+                            # if fovMap[fovMapX][fovMapY] == 1:
+                            #     # self.detLevel[fovMapX][fovMapY]== 1:
+                            #     tileRect = pygame.Rect(fovMapX * PLAYERSIZE + XMARGIN, \
+                            #         fovMapY * PLAYERSIZE + YMARGIN, PLAYERSIZE, PLAYERSIZE)
+                            #     pygame.draw.rect(anisurf, FOW, tileRect)
+
             for guard in self.guards:
-                pygame.draw.rect(anisurf, RED, pygame.Rect(guard.x, guard.y,
-                    PLAYERSIZE, PLAYERSIZE))
+                if fovMap[(guard.x - XMARGIN) / PLAYERSIZE] \
+                    [(guard.y - YMARGIN) / PLAYERSIZE] == 2:
+                    pygame.draw.rect(anisurf, RED, pygame.Rect(guard.x, guard.y,
+                        PLAYERSIZE, PLAYERSIZE))
 
             pygame.draw.rect(anisurf, BLUE, pygame.Rect(self.player1.x, self.player1.y, 
                 PLAYERSIZE, PLAYERSIZE))
