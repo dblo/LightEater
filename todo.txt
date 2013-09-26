@@ -2,6 +2,7 @@ show controls during loading map, push click to start
 shadow map > ray casting/tracing?
 instead of progress bar capture, fade in color over all structures
 
+player moves in the dark but at start of map is shown hint/map reveal momentarily7
 
 MID:
 fog
@@ -11,3 +12,5 @@ agents stop/change pattern/speed
 switches/doors
 scrolling
 import map
+set shade lvl by distance from player
+create separate fow surface, draw everywhere not lit
