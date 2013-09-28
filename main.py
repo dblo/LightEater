@@ -8,13 +8,15 @@ FPS         = 30
 NUMROWS     = 6
 NUMCOLS     = 10
 PLAYERSPEED = 1
-PLAYERSIZE  = 10
-TILESIZE    = PLAYERSIZE * 4
-WIDTH       = NUMCOLS * TILESIZE + 100 + 100
-HEIGHT      = NUMROWS * TILESIZE + 100 + 100
+TILESIZE    = 10
+PLAYERSIZE  = TILESIZE
+GUARDSIZE   = TILESIZE
+PLAYERRANGE = 9
+GUARDRANGE  = 6
+WIDTH       = NUMCOLS * TILESIZE + 100
+HEIGHT      = NUMROWS * TILESIZE + 100
 YMARGIN     = (HEIGHT - TILESIZE * NUMROWS) / 2
-XMARGIN     = (WIDTH - TILESIZE * NUMCOLS) / 2 
-TILEPLAYERRATIO = TILESIZE / PLAYERSIZE
+XMARGIN     = (WIDTH - TILESIZE  * NUMCOLS) / 2 
 WALL        = 0
 UNEXPLORED  = 0
 EXPLORED    = 1
@@ -28,13 +30,13 @@ GREEN   = (0,   255,   0)
 BLUE    = (0,   0,   255)
 FOW     = (10, 170, 10, 125)
 
-assert TILESIZE % PLAYERSPEED == 0, "Bad tilesize - playerspeed ratio"
-assert TILESIZE % PLAYERSIZE == 0, "Bad tilesize - playersize ratio"
+# assert TILESIZE % PLAYERSPEED == 0, "Bad tilesize - playerspeed ratio"
+# assert TILESIZE % PLAYERSIZE == 0, "Bad tilesize - playersize ratio"
 
 class Player:
     def __init__(self, x, y):
-        self.x = x + TILESIZE / 2 - PLAYERSIZE / 2
-        self.y = y + TILESIZE / 2 - PLAYERSIZE / 2
+        self.x = x
+        self.y = y
         self.movingLeft     = False
         self.movingRight    = False
         self.movingUp       = False
@@ -58,11 +60,10 @@ class Guard:
         self.speed = speed
         self.currInstr = 1
 
-        offsetToCenter = TILESIZE / 2 - PLAYERSIZE / 2
-        self.x = route[0][0] * TILESIZE + XMARGIN + offsetToCenter
-        self.y = route[0][1] * TILESIZE + YMARGIN + offsetToCenter
-        self.goalX = route[1][0] * TILESIZE + XMARGIN + offsetToCenter
-        self.goalY = route[1][1] * TILESIZE + YMARGIN + offsetToCenter
+        self.x = route[0][0] * TILESIZE + XMARGIN
+        self.y = route[0][1] * TILESIZE + YMARGIN
+        self.goalX = route[1][0] * TILESIZE + XMARGIN
+        self.goalY = route[1][1] * TILESIZE + YMARGIN
 
     def move(self):
         if self.x < self.goalX:
@@ -83,10 +84,8 @@ class Guard:
 
         if self.x == self.goalX and self.y == self.goalY:
             self.currInstr = (self.currInstr + 1) % len(self.route)
-            self.goalX = self.route[self.currInstr][0] * TILESIZE + XMARGIN \
-                + TILESIZE / 2 - PLAYERSIZE / 2
-            self.goalY = self.route[self.currInstr][1] * TILESIZE + YMARGIN \
-                + TILESIZE / 2 - PLAYERSIZE / 2
+            self.goalX = self.route[self.currInstr][0] * TILESIZE + XMARGIN
+            self.goalY = self.route[self.currInstr][1] * TILESIZE + YMARGIN
 
 class Game:
     def __init__(self):
@@ -108,20 +107,7 @@ class Game:
         self.guards.append(Guard(((3,1), (3,4), (5,4), (5,1)), 1))
         self.guards.append(Guard(((5,4), (5,1), (3,1), (3,4)), 1))
 
-        self.detLevel = [[0 for j in range(NUMROWS * TILEPLAYERRATIO)] \
-                    for i in range(NUMCOLS * TILEPLAYERRATIO)]
-
-        for row in range(NUMROWS):
-            for col in range(NUMCOLS):
-                if self.level[col][row] == 1:
-                    for y in range(TILEPLAYERRATIO):
-                        for x in range(TILEPLAYERRATIO):
-                            self.detLevel[col * TILEPLAYERRATIO + x] \
-                                [row * TILEPLAYERRATIO + y] = 1
-
-
-        self.fovMap = [[0 for j in range(NUMROWS * TILEPLAYERRATIO)] \
-                    for i in range(NUMCOLS * TILEPLAYERRATIO)]
+        self.fovMap = []
 
         self.DISPLAYSURF = pygame.display.set_mode((WIDTH, HEIGHT))
         self.anisurf     = pygame.Surface((WIDTH, HEIGHT)).convert_alpha()            
@@ -133,7 +119,7 @@ class Game:
         fovCounter = 0        
 
         def tileBlocked(x, y): 
-            return self.detLevel[x][y] == WALL
+            return self.level[x][y] == WALL
         def markVisible(x, y): self.fovMap[x][y] = 1
         def markLit(x, y):
             if self.fovMap[x][y] == 1:
@@ -192,38 +178,36 @@ class Game:
         self.anisurf.fill(BLACK)
         for row in range(NUMROWS):
             for col in range(NUMCOLS):
-                tileRect = pygame.Rect(col * TILESIZE + XMARGIN, 
-                    row * TILESIZE + YMARGIN, TILESIZE, TILESIZE)
+                x = col * TILESIZE + XMARGIN
+                y = row * TILESIZE + YMARGIN
+
+                tileRect = pygame.Rect(x, y, TILESIZE, TILESIZE)
                 
-                if self.level[col][row] == 0:
+                if self.level[col][row] == UNEXPLORED:
                     pygame.draw.rect(self.anisurf, GRAY, tileRect)
-                elif self.level[col][row] == 1:
+                elif self.level[col][row] == EXPLORED:
                     pygame.draw.rect(self.anisurf, GREEN, tileRect)
 
-                for y in range(TILEPLAYERRATIO):
-                    for x in range(TILEPLAYERRATIO):
-                        fovMapX = col * TILEPLAYERRATIO + x
-                        fovMapY = row * TILEPLAYERRATIO + y
+                # if self.fovMap[col][row] < 2:
+                #     tileRect = pygame.Rect(x, y, PLAYERSIZE, PLAYERSIZE)
+                #     pygame.draw.rect(self.anisurf, (100, 100, 100, 100), tileRect)
 
-                        if self.fovMap[fovMapX][fovMapY] < 2:
-                            tileRect = pygame.Rect(fovMapX * PLAYERSIZE + XMARGIN, 
-                                fovMapY * PLAYERSIZE + YMARGIN, PLAYERSIZE, PLAYERSIZE)
-                            pygame.draw.rect(self.anisurf, (100, 100, 100, 100), tileRect)
-
-                        # if self.fovMap[fovMapX][fovMapY] == 1:
-                        #     # self.detLevel[fovMapX][fovMapY]== 1:
-                        #     tileRect = pygame.Rect(fovMapX * PLAYERSIZE + XMARGIN, \
-                        #         fovMapY * PLAYERSIZE + YMARGIN, PLAYERSIZE, PLAYERSIZE)
-                        #     pygame.draw.rect(self.anisurf, FOW, tileRect)
+                # if self.fovMap[fovMapX][fovMapY] == 1:
+                #     # self.detLevel[fovMapX][fovMapY]== 1:
+                #     tileRect = pygame.Rect(fovMapX * PLAYERSIZE + XMARGIN, \
+                #         fovMapY * PLAYERSIZE + YMARGIN, PLAYERSIZE, PLAYERSIZE)
+                    #     pygame.draw.rect(self.anisurf, FOW, tileRect)
 
         for guard in self.guards:
-            if self.fovMap[(guard.x - XMARGIN) / PLAYERSIZE] \
-                [(guard.y - YMARGIN) / PLAYERSIZE] == 2:
+            x = (guard.x - XMARGIN) / TILESIZE
+            y = (guard.y - YMARGIN) / TILESIZE
+
+            if self.fovMap[x][y] == LIT:
                 pygame.draw.rect(self.anisurf, RED, pygame.Rect(guard.x, guard.y,
                     PLAYERSIZE, PLAYERSIZE))
 
         pygame.draw.rect(self.anisurf, BLUE, pygame.Rect(self.player1.x, self.player1.y, 
-            PLAYERSIZE, PLAYERSIZE))
+            GUARDSIZE, GUARDSIZE))
 
         self.DISPLAYSURF.fill(BLACK)
         self.DISPLAYSURF.blit(self.anisurf, (0,0))
@@ -260,36 +244,34 @@ class Game:
                     sys.exit()
 
     def updateFOV(self, tileBlocked, markVisible, markLit):
-        self.fovMap = [[0 for j in range(NUMROWS * TILEPLAYERRATIO)] \
-                    for i in range(NUMCOLS * TILEPLAYERRATIO)]
+        self.fovMap = [[0 for j in range(NUMROWS)] \
+                    for i in range(NUMCOLS)]
 
-        xCoord = (self.player1.x - XMARGIN) / (TILESIZE / TILEPLAYERRATIO)
-        yCoord = (self.player1.y - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
+        xCoord = (self.player1.x - XMARGIN) / TILESIZE
+        yCoord = (self.player1.y - YMARGIN) / TILESIZE
         
-        fov.fieldOfView(xCoord, yCoord, \
-            NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, TILEPLAYERRATIO*3, \
+        fov.fieldOfView(xCoord, yCoord, NUMCOLS, NUMROWS, PLAYERRANGE, \
             markVisible, tileBlocked)
 
-        # xCoord = (self.player1.x + PLAYERSIZE/2 - XMARGIN) / (TILESIZE / TILEPLAYERRATIO)
-        # yCoord = (self.player1.y + PLAYERSIZE/2 - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
+        # xCoord = (self.player1.x + PLAYERSIZE/2 - XMARGIN) / TILESIZE
+        # yCoord = (self.player1.y + PLAYERSIZE/2 - YMARGIN) / TILESIZE
 
         # fov.fieldOfView(xCoord, yCoord, \
-        #      NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, 1, \
+        #      NUMCOLS, NUMROWS, 1, \
         #      markLit, tileBlocked)
 
-        # xCoord = (self.player1.x + PLAYERSIZE/2 - XMARGIN) / (TILESIZE / TILEPLAYERRATIO)
-        # yCoord = (self.player1.y + PLAYERSIZE/2 - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
+        # xCoord = (self.player1.x + PLAYERSIZE/2 - XMARGIN) / TILESIZE
+        # yCoord = (self.player1.y + PLAYERSIZE/2 - YMARGIN) / TILESIZE
 
         # fov.fieldOfView(xCoord, yCoord, \
-        #     NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, 1, \
+        #     NUMCOLS, NUMROWS, 1, \
         #     markLit, tileBlocked)
 
         for guard in self.guards:
-            xCoord = (guard.x - XMARGIN) / (TILESIZE / TILEPLAYERRATIO)
-            yCoord = (guard.y - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
+            xCoord = (guard.x - XMARGIN) / TILESIZE
+            yCoord = (guard.y - YMARGIN) / TILESIZE
 
-            fov.fieldOfView(xCoord, yCoord, \
-                NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, TILEPLAYERRATIO, \
+            fov.fieldOfView(xCoord, yCoord, NUMCOLS, NUMROWS, GUARDRANGE, \
                 markLit, tileBlocked)
 
 def main():
