@@ -7,13 +7,13 @@ import fov
 FPS         = 30
 NUMROWS     = 6
 NUMCOLS     = 10
-TILESIZE    = 30
-WIDTH       = NUMCOLS * TILESIZE + 100
-HEIGHT      = NUMROWS * TILESIZE + 100
-YMARGIN     = (HEIGHT - TILESIZE * NUMROWS) / 2
-XMARGIN     = (WIDTH - TILESIZE * NUMCOLS) / 2 
 PLAYERSPEED = 1
 PLAYERSIZE  = 10
+TILESIZE    = PLAYERSIZE * 4
+WIDTH       = NUMCOLS * TILESIZE + 100 + 100
+HEIGHT      = NUMROWS * TILESIZE + 100 + 100
+YMARGIN     = (HEIGHT - TILESIZE * NUMROWS) / 2
+XMARGIN     = (WIDTH - TILESIZE * NUMCOLS) / 2 
 TILEPLAYERRATIO = TILESIZE / PLAYERSIZE
 WALL        = 0
 UNEXPLORED  = 0
@@ -267,15 +267,15 @@ class Game:
         yCoord = (self.player1.y - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
         
         fov.fieldOfView(xCoord, yCoord, \
-            NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, 9, \
+            NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, TILEPLAYERRATIO*3, \
             markVisible, tileBlocked)
 
         # xCoord = (self.player1.x + PLAYERSIZE/2 - XMARGIN) / (TILESIZE / TILEPLAYERRATIO)
         # yCoord = (self.player1.y + PLAYERSIZE/2 - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
 
         # fov.fieldOfView(xCoord, yCoord, \
-        #     NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, 2, \
-        #     markLit, tileBlocked)
+        #      NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, 1, \
+        #      markLit, tileBlocked)
 
         # xCoord = (self.player1.x + PLAYERSIZE/2 - XMARGIN) / (TILESIZE / TILEPLAYERRATIO)
         # yCoord = (self.player1.y + PLAYERSIZE/2 - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
@@ -289,7 +289,7 @@ class Game:
             yCoord = (guard.y - YMARGIN) / (TILESIZE / TILEPLAYERRATIO)
 
             fov.fieldOfView(xCoord, yCoord, \
-                NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, 5, \
+                NUMCOLS * TILEPLAYERRATIO, NUMROWS * TILEPLAYERRATIO, TILEPLAYERRATIO, \
                 markLit, tileBlocked)
 
 def main():
