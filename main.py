@@ -133,13 +133,18 @@ class Game:
 
             if fovCounter == 0:
                 self.updateFOV(tileBlocked, markVisible, markLit)
+                self.chechIfCaught()
                 fovCounter = FPS / 2
             else:
                 fovCounter -= 1
-
             self.render()
             fpsClock.tick(FPS)
 
+    def chechIfCaught(self):
+        if self.fovMap[(self.player1.x - XMARGIN) / TILESIZE] \
+            [(self.player1.y - YMARGIN) / TILESIZE] == LIT:
+            print "caught"
+            
     def movePlayer(self, player):
         rect = pygame.Rect(player.x - XMARGIN, player.y - YMARGIN, \
             PLAYERSIZE-1, PLAYERSIZE-1)
@@ -188,9 +193,9 @@ class Game:
                 elif self.level[col][row] == EXPLORED:
                     pygame.draw.rect(self.anisurf, GREEN, tileRect)
 
-                # if self.fovMap[col][row] < 2:
-                #     tileRect = pygame.Rect(x, y, PLAYERSIZE, PLAYERSIZE)
-                #     pygame.draw.rect(self.anisurf, (100, 100, 100, 100), tileRect)
+                if self.fovMap[col][row] < 2:
+                    tileRect = pygame.Rect(x, y, PLAYERSIZE, PLAYERSIZE)
+                    pygame.draw.rect(self.anisurf, (100, 100, 100, 100), tileRect)
 
                 # if self.fovMap[fovMapX][fovMapY] == 1:
                 #     # self.detLevel[fovMapX][fovMapY]== 1:
