@@ -2,25 +2,23 @@
 
 import pygame, sys
 from pygame.locals import *
-import fov
+import fov, random
 
 FPS         = 30
-NUMROWS     = 6
-NUMCOLS     = 10
-PLAYERSPEED = 1
-TILESIZE    = 10
+PLAYERSPEED = 2
+TILESIZE    = 20
 PLAYERSIZE  = TILESIZE
 GUARDSIZE   = TILESIZE
-PLAYERRANGE = 9
-GUARDRANGE  = 6
-WIDTH       = NUMCOLS * TILESIZE + 100
-HEIGHT      = NUMROWS * TILESIZE + 100
-YMARGIN     = (HEIGHT - TILESIZE * NUMROWS) / 2
-XMARGIN     = (WIDTH - TILESIZE  * NUMCOLS) / 2 
+PLAYERRANGE = 5
+GUARDRANGE  = 4
+WIDTH       = 1800
+HEIGHT      = 900
 WALL        = 0
+OPEN        = 1
 UNEXPLORED  = 0
 EXPLORED    = 1
 LIT         = 2
+INLOS       = 1
 
 BLACK   = (0,   0,   0)
 WHITE   = (255, 255, 255)
@@ -55,17 +53,17 @@ class Player:
         self.movingDown = move
 
 class Guard:
-    def __init__(self, route, speed):
+    def __init__(self, route, speed, xMargin, yMargin):
         self.route = route
         self.speed = speed
         self.currInstr = 1
 
-        self.x = route[0][0] * TILESIZE + XMARGIN
-        self.y = route[0][1] * TILESIZE + YMARGIN
-        self.goalX = route[1][0] * TILESIZE + XMARGIN
-        self.goalY = route[1][1] * TILESIZE + YMARGIN
+        self.x = route[0][0] * TILESIZE + xMargin
+        self.y = route[0][1] * TILESIZE + yMargin
+        self.goalX = route[1][0] * TILESIZE + xMargin
+        self.goalY = route[1][1] * TILESIZE + yMargin
 
-    def move(self):
+    def move(self, xMargin, yMargin):
         if self.x < self.goalX:
             self.x += self.speed
         elif self.x > self.goalX:
@@ -84,28 +82,39 @@ class Guard:
 
         if self.x == self.goalX and self.y == self.goalY:
             self.currInstr = (self.currInstr + 1) % len(self.route)
-            self.goalX = self.route[self.currInstr][0] * TILESIZE + XMARGIN
-            self.goalY = self.route[self.currInstr][1] * TILESIZE + YMARGIN
+            self.goalX = self.route[self.currInstr][0] * TILESIZE + xMargin
+            self.goalY = self.route[self.currInstr][1] * TILESIZE + yMargin
 
 class Game:
     def __init__(self):
         pygame.init()
 
-        self.player1 = Player(XMARGIN + TILESIZE, YMARGIN + TILESIZE)
-        self.level = [ [0, 0, 0, 0, 0, 0],
-        [0, 1, 1, 1, 1, 0],
-        [0, 1, 0, 0, 1, 0],
-        [0, 1, 1, 1, 1, 0],
-        [0, 1, 0, 0, 1, 0],
-        [0, 1, 1, 1, 1, 0],
-        [0, 1, 1, 1, 1, 0],
-        [0, 1, 0, 1, 0, 0],
-        [0, 1, 1, 1, 1, 0],
-        [0, 0, 0, 0, 0, 0] ]
+        self.numRows     = 20
+        self.numCols     = 80
+        self.yMargin     = (HEIGHT - TILESIZE * self.numRows) / 2
+        self.xMargin     = (WIDTH - TILESIZE  * self.numCols) / 2 
+        self.player1     = Player(self.xMargin + TILESIZE, self.yMargin + TILESIZE)
+        self.level       = [[OPEN for j in range(self.numRows)] for i in range(self.numCols)]
+        self.fogMap      = [[UNEXPLORED for j in range(self.numRows)] for i in range(self.numCols)]
+
+        for i in range(100):
+            x = random.randint(1, self.numCols-1)
+            y = random.randint(1, self.numRows-1)
+            self.level[x][y] = WALL
+
+        for i in range(self.numCols):
+            self.level[i][0] = WALL
+            self.level[i][self.numRows-1] = WALL
+
+        for i in range(self.numRows):
+            self.level[0][i] = WALL
+            self.level[self.numCols-1][i] = WALL
 
         self.guards = []
-        self.guards.append(Guard(((3,1), (3,4), (5,4), (5,1)), 1))
-        self.guards.append(Guard(((5,4), (5,1), (3,1), (3,4)), 1))
+        self.guards.append(Guard(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 4, \
+            self.xMargin, self.yMargin))
+        self.guards.append(Guard(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 4, \
+            self.xMargin, self.yMargin))
 
         self.fovMap = []
 
@@ -118,35 +127,41 @@ class Game:
         fpsClock = pygame.time.Clock()
         fovCounter = 0        
 
-        def tileBlocked(x, y): 
+        def tileBlockes(x, y): 
             return self.level[x][y] == WALL
-        def markVisible(x, y): self.fovMap[x][y] = 1
+
+        # Player has LOS on (x,y)
+        def markVisible(x, y): 
+            self.fovMap[x][y] = INLOS
+            self.fogMap[x][y] = EXPLORED
+
+        # Guard had LOS on (x,y)
         def markLit(x, y):
-            if self.fovMap[x][y] == 1:
-                self.fovMap[x][y] = 2
+            if self.fovMap[x][y] == INLOS:
+                self.fovMap[x][y] = LIT
 
         while 1:
             self.handleInput()
             self.movePlayer(self.player1)
             for guard in self.guards:
-                guard.move()
+                guard.move(self.xMargin, self.yMargin)
 
             if fovCounter == 0:
-                self.updateFOV(tileBlocked, markVisible, markLit)
-                self.chechIfCaught()
+                self.updateFOV(tileBlockes, markVisible, markLit)
+                self.checkIfCaught()
                 fovCounter = FPS / 2
             else:
                 fovCounter -= 1
             self.render()
             fpsClock.tick(FPS)
 
-    def chechIfCaught(self):
-        if self.fovMap[(self.player1.x - XMARGIN) / TILESIZE] \
-            [(self.player1.y - YMARGIN) / TILESIZE] == LIT:
+    def checkIfCaught(self):
+        if self.fovMap[(self.player1.x - self.xMargin) / TILESIZE] \
+            [(self.player1.y - self.yMargin) / TILESIZE] == LIT:
             print "caught"
             
     def movePlayer(self, player):
-        rect = pygame.Rect(player.x - XMARGIN, player.y - YMARGIN, \
+        rect = pygame.Rect(player.x - self.xMargin, player.y - self.yMargin, \
             PLAYERSIZE-1, PLAYERSIZE-1)
 
         if player.movingLeft:
@@ -179,33 +194,36 @@ class Game:
             else:
                 player.y += PLAYERSPEED
 
-    def render(self, ):
+    def render(self):
+        fog = pygame.Surface((TILESIZE, TILESIZE))
+        fog.set_alpha(220)
+        fog.fill(BLACK)
         self.anisurf.fill(BLACK)
-        for row in range(NUMROWS):
-            for col in range(NUMCOLS):
-                x = col * TILESIZE + XMARGIN
-                y = row * TILESIZE + YMARGIN
+
+        for row in range(self.numRows):
+            for col in range(self.numCols):
+                x = col * TILESIZE + self.xMargin
+                y = row * TILESIZE + self.yMargin
 
                 tileRect = pygame.Rect(x, y, TILESIZE, TILESIZE)
                 
-                if self.level[col][row] == UNEXPLORED:
+                if self.level[col][row] == WALL:
                     pygame.draw.rect(self.anisurf, GRAY, tileRect)
-                elif self.level[col][row] == EXPLORED:
+                elif self.level[col][row] == OPEN:
                     pygame.draw.rect(self.anisurf, GREEN, tileRect)
 
-                if self.fovMap[col][row] < 2:
-                    tileRect = pygame.Rect(x, y, PLAYERSIZE, PLAYERSIZE)
-                    pygame.draw.rect(self.anisurf, (100, 100, 100, 100), tileRect)
-
-                # if self.fovMap[fovMapX][fovMapY] == 1:
-                #     # self.detLevel[fovMapX][fovMapY]== 1:
-                #     tileRect = pygame.Rect(fovMapX * PLAYERSIZE + XMARGIN, \
-                #         fovMapY * PLAYERSIZE + YMARGIN, PLAYERSIZE, PLAYERSIZE)
-                    #     pygame.draw.rect(self.anisurf, FOW, tileRect)
+                if not self.fovMap[col][row] == LIT:
+                    if self.fogMap[col][row] == EXPLORED:
+                        self.anisurf.blit(fog, (x, y))
+                    else:
+                        tileRect = pygame.Rect(x, y, PLAYERSIZE, PLAYERSIZE)
+                        pygame.draw.rect(self.anisurf, BLACK, tileRect)
 
         for guard in self.guards:
-            x = (guard.x - XMARGIN) / TILESIZE
-            y = (guard.y - YMARGIN) / TILESIZE
+            # todo: Check dist to player
+
+            x = (guard.x - self.xMargin) / TILESIZE
+            y = (guard.y - self.yMargin) / TILESIZE
 
             if self.fovMap[x][y] == LIT:
                 pygame.draw.rect(self.anisurf, RED, pygame.Rect(guard.x, guard.y,
@@ -214,7 +232,6 @@ class Game:
         pygame.draw.rect(self.anisurf, BLUE, pygame.Rect(self.player1.x, self.player1.y, 
             GUARDSIZE, GUARDSIZE))
 
-        self.DISPLAYSURF.fill(BLACK)
         self.DISPLAYSURF.blit(self.anisurf, (0,0))
         pygame.display.update()
 
@@ -249,34 +266,20 @@ class Game:
                     sys.exit()
 
     def updateFOV(self, tileBlocked, markVisible, markLit):
-        self.fovMap = [[0 for j in range(NUMROWS)] \
-                    for i in range(NUMCOLS)]
+        self.fovMap = [[0 for j in range(self.numRows)] \
+                    for i in range(self.numCols)]
 
-        xCoord = (self.player1.x - XMARGIN) / TILESIZE
-        yCoord = (self.player1.y - YMARGIN) / TILESIZE
+        xCoord = (self.player1.x - self.xMargin + PLAYERSIZE / 2) / TILESIZE
+        yCoord = (self.player1.y - self.yMargin + PLAYERSIZE / 2) / TILESIZE
         
-        fov.fieldOfView(xCoord, yCoord, NUMCOLS, NUMROWS, PLAYERRANGE, \
+        fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, PLAYERRANGE, \
             markVisible, tileBlocked)
 
-        # xCoord = (self.player1.x + PLAYERSIZE/2 - XMARGIN) / TILESIZE
-        # yCoord = (self.player1.y + PLAYERSIZE/2 - YMARGIN) / TILESIZE
-
-        # fov.fieldOfView(xCoord, yCoord, \
-        #      NUMCOLS, NUMROWS, 1, \
-        #      markLit, tileBlocked)
-
-        # xCoord = (self.player1.x + PLAYERSIZE/2 - XMARGIN) / TILESIZE
-        # yCoord = (self.player1.y + PLAYERSIZE/2 - YMARGIN) / TILESIZE
-
-        # fov.fieldOfView(xCoord, yCoord, \
-        #     NUMCOLS, NUMROWS, 1, \
-        #     markLit, tileBlocked)
-
         for guard in self.guards:
-            xCoord = (guard.x - XMARGIN) / TILESIZE
-            yCoord = (guard.y - YMARGIN) / TILESIZE
+            xCoord = (guard.x - self.xMargin + PLAYERSIZE / 2) / TILESIZE
+            yCoord = (guard.y - self.yMargin + PLAYERSIZE / 2) / TILESIZE
 
-            fov.fieldOfView(xCoord, yCoord, NUMCOLS, NUMROWS, GUARDRANGE, \
+            fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, GUARDRANGE, \
                 markLit, tileBlocked)
 
 def main():
