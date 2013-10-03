@@ -1,18 +1,18 @@
 SHORT:
-design lvls + purpose
 game menu - play, credits, exit
+agent colors
+level choice screen
 
 MID:
-agents chase
+player sprites
 import map
 fix clamp bug
 check center not topleft ie player dist to coord
-level choice screen
 music
+set color lapha by distance from agent
 
 LONG:
 splashscreen
-set shade lvl by distance from player
 
 
 MAYBE:
