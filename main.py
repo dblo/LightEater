@@ -1,110 +1,39 @@
 #! /usr/bin/env python
 
-import pygame, sys
-from pygame.locals import *
-import fov, random
-
-FPS         = 30
-PLAYERSPEED = 2
-TILESIZE    = 20
-TILESIZESQ  = TILESIZE**2
-PLAYERSIZE  = TILESIZE
-HALFPLAYERSIZE = PLAYERSIZE / 2
-GUARDSIZE   = TILESIZE
-PLAYERRANGE = 6
-GUARDRANGE  = 3
-WIDTH       = 1600
-HEIGHT      = 800
-WALL        = 0
-OPEN        = 1
-UNEXPLORED  = 0
-EXPLORED    = 1
-LIT         = 2
-INLOS       = 1
-UNKNOWN     = 0
-MENU        = 0
-PLAY        = 1
-EXIT        = 3
-CREDITS     = 2
-FOGALPHA    = 200
-
-BLACK   = (0,   0,   0)
-WHITE   = (255, 255, 255)
-RED     = (255, 0,   0)
-GRAY    = (100, 100, 100)
-GREEN   = (0,   255,   0)
-BLUE    = (0,   0,   255)
-FOW     = (10, 170, 10, 125)
-NOCOLOR = (255, 0, 255, 0)
-
-assert PLAYERSIZE % 2 == 0, "Playersize not even"
-# assert TILESIZE % PLAYERSIZE == 0, "Bad tilesize - playersize ratio"
-
-class Player:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.movingLeft     = False
-        self.movingRight    = False
-        self.movingUp       = False
-        self.movingDown     = False
-
-    def setMovingLeft(self, move):
-        self.movingLeft = move
-
-    def setMovingRight(self, move):
-        self.movingRight = move
-
-    def setMovingUp(self, move):
-        self.movingUp = move
-
-    def setMovingDown(self, move):
-        self.movingDown = move
-
-class Guard:
-    def __init__(self, route, speed):
-        self.route = route
-        self.speed = speed
-        self.currInstr = 1
-
-        self.x = route[0][0] * TILESIZE
-        self.y = route[0][1] * TILESIZE
-        self.goalX = route[1][0] * TILESIZE
-        self.goalY = route[1][1] * TILESIZE
-
-    def move(self):
-        if self.x < self.goalX:
-            self.x += self.speed
-        elif self.x > self.goalX:
-            self.x -= self.speed
-
-        if self.y < self.goalY:
-            self.y += self.speed
-        elif self.y > self.goalY:
-            self.y -= self.speed
-
-        if abs(self.x - self.goalX) < self.speed:
-            self.x = self.goalX
-
-        if abs(self.y - self.goalY) < self.speed:
-            self.y = self.goalY
-
-        if self.x == self.goalX and self.y == self.goalY:
-            self.currInstr = (self.currInstr + 1) % len(self.route)
-            self.goalX = self.route[self.currInstr][0] * TILESIZE
-            self.goalY = self.route[self.currInstr][1] * TILESIZE
+import pygame, sys, fov, random
+from pygame.locals import KEYDOWN, KEYUP, K_DOWN, K_UP, K_LEFT, K_RIGHT, K_ESCAPE, K_RETURN
+from constants import *
+from player import Player
+from agent import Agent
 
 class Game:
     def __init__(self):
         pygame.init()
+        self.numRows     = None
+        self.numCols     = None
+        self.player1     = None
+        self.level       = None
+        self.spawnPos    = None
+        self.guards      = []
 
-        self.numRows     = 20
-        self.numCols     = 80
+        self.loadLevel()
         self.yMargin     = (HEIGHT - TILESIZE * self.numRows) / 2
         self.xMargin     = (WIDTH - TILESIZE  * self.numCols) / 2 
-        self.player1     = Player(TILESIZE, TILESIZE)
-        self.level       = [[OPEN for j in range(self.numRows)] for i in range(self.numCols)]
-        self.fogMap      = [[UNEXPLORED for j in range(self.numRows)] for i in range(self.numCols)]
+        self.fogMap      = [[UNEXPLORED]*self.numRows for i in range(self.numCols)]
+        self.fovMap      = []
+
+        self.displaySurf = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.levelSurf   = pygame.Surface((self.numCols * TILESIZE, \
+            self.numRows * TILESIZE))
+        self.workSurf    = self.levelSurf.copy().convert_alpha()
+
+        self.makeLevelSurf()
+        pygame.display.set_caption("Splinter block")
+
+    def loadLevel(self):
+        self.numRows    = 20
+        self.numCols    = 80
+        self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
 
         for i in range(100):
             x = random.randint(1, self.numCols-1)
@@ -119,22 +48,11 @@ class Game:
             self.level[0][i] = WALL
             self.level[self.numCols-1][i] = WALL
 
-        self.guards = []
-        self.guards.append(Guard(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1))
-        self.guards.append(Guard(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1))
-        self.guards.append(Guard(((5,5), (5,19)), 1))
-
-        self.fovMap = []
-
-        self.displaySurf = pygame.display.set_mode((WIDTH, HEIGHT))
-        self.levelSurf   = pygame.Surface((self.numCols * TILESIZE, \
-            self.numRows * TILESIZE))
-        self.makeLevelSurf()
-
-        self.workSurf    = pygame.Surface((self.numCols * TILESIZE, \
-            self.numRows * TILESIZE)).convert_alpha()
-
-        pygame.display.set_caption("Splinter block")
+        self.spawnPos   = (1, 1)
+        self.player1    = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
+        self.guards.append(Agent(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1))
+        self.guards.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1))
+        self.guards.append(Agent(((5,5), (5,19)), 1))        
 
     def makeLevelSurf(self):
         for row in range(self.numRows):
@@ -152,7 +70,7 @@ class Game:
         fpsClock    = pygame.time.Clock()
         gameMode    = MENU
 
-        while gameMode is not EXIT:
+        while gameMode is not QUIT:
             self.displaySurf.fill(BLACK)
             if gameMode is MENU:
                 gameMode = self.showMenu(fpsClock)
@@ -166,7 +84,7 @@ class Game:
         MAXALPHA        = 260
         MINALPHA        = 90
         activeChoice    = PLAY
-        playAlpha       = 250
+        playAlpha       = MAXALPHA
         creditsAlpha    = MINALPHA
         exitAlpha       = MINALPHA
         hi              = TILESIZE * 5
@@ -174,10 +92,10 @@ class Game:
         playPos         = (WIDTH / 2 - wid / 2, HEIGHT / 5)
         creditsPos      = (WIDTH / 2 - wid / 2, HEIGHT / 5 + hi*2)
         exitPos         = (WIDTH / 2 - wid / 2, HEIGHT / 5 + hi*4)
-        playSurf = pygame.Surface((wid, hi)).convert_alpha()
-        creditsSurf = pygame.Surface((wid, hi)).convert_alpha()
-        exitSurf = pygame.Surface((wid, hi)).convert_alpha()
-        surf = pygame.Surface((TILESIZE, TILESIZE))
+        playSurf        = pygame.Surface((wid, hi)).convert_alpha()
+        creditsSurf     = pygame.Surface((wid, hi)).convert_alpha()
+        exitSurf        = pygame.Surface((wid, hi)).convert_alpha()
+        surf            = pygame.Surface((TILESIZE, TILESIZE))
         
         while 1:
             if activeChoice is PLAY:
@@ -192,7 +110,7 @@ class Game:
             elif creditsAlpha > MINALPHA:
                     creditsAlpha -= 10
             
-            if activeChoice is EXIT:
+            if activeChoice is QUIT:
                 if exitAlpha < MAXALPHA:
                     exitAlpha += 10
             elif exitAlpha > MINALPHA:
@@ -201,19 +119,19 @@ class Game:
             # self.handleMenuInput()
             for event in pygame.event.get():
                 if event.type == KEYDOWN:
-                    if event.key == K_DOWN and activeChoice < EXIT:
+                    if event.key == K_DOWN and activeChoice < QUIT:
                         activeChoice += 1
                     elif event.key == K_UP and activeChoice > PLAY:
                         activeChoice -= 1
                     elif event.key == K_ESCAPE:
-                        return EXIT
+                        return QUIT
                     elif event.key == K_RETURN:
                         return activeChoice
-                        
+
                 if event.type == KEYUP:
                     pass
             
-                if event.type == QUIT:
+                if event.type == pygame.locals.QUIT:
                     self.quitGame()
 
             playSurf.fill(BLACK)
@@ -257,7 +175,7 @@ class Game:
             self.fovMap[x][y] = INLOS
             self.fogMap[x][y] = EXPLORED
 
-        # Guard had LOS on (x,y)
+        # Agent had LOS on (x,y)
         def markLit(x, y):
             if self.fovMap[x][y] == INLOS:
                 self.fovMap[x][y] = LIT
@@ -274,7 +192,7 @@ class Game:
             if fovCounter == 0:
                 self.updateFOV(tileBlockes, markVisible, markLit)
                 self.checkIfCaught()
-                fovCounter = FPS / 2
+                fovCounter = FOV_UPDATE_RATE
             else:
                 fovCounter -= 1
             self.render()
@@ -338,13 +256,13 @@ class Game:
 
                 if self.fovMap[col][row] >= INLOS:
                     alpha = (self.getDist(x, y) / TILESIZESQ)*6
-                    if alpha > FOGALPHA:
-                        fog.set_alpha(FOGALPHA)
+                    if alpha > FOG_ALPHA:
+                        fog.set_alpha(FOG_ALPHA)
                     else:
                         fog.set_alpha(alpha)
                     self.workSurf.blit(fog, (x, y))
                 elif self.fogMap[col][row] is EXPLORED:
-                    fog.set_alpha(FOGALPHA)
+                    fog.set_alpha(FOG_ALPHA)
                     self.workSurf.blit(fog, (x, y))
                 else:
                     pygame.draw.rect(self.workSurf, BLACK, tileRect)
@@ -366,9 +284,11 @@ class Game:
                 pygame.draw.rect(self.workSurf, RED, pygame.Rect(guard.x, \
                     guard.y, GUARDSIZE, GUARDSIZE))
 
+    # Return tilegrid x-coordinate
     def getCoordX(self, pos):
         return (pos + HALFPLAYERSIZE) / TILESIZE
 
+    # Return tilegrid y-coordinate
     def getCoordY(self, pos):
         return (pos + HALFPLAYERSIZE) / TILESIZE
 
@@ -384,7 +304,7 @@ class Game:
     def isWall(self, x, y):
         return self.level[x / TILESIZE][y / TILESIZE] == WALL
 
-    # Returns true if esc was pressed
+    # Return true if esc was pressed
     def handleInput(self):
         for event in pygame.event.get():
             if event.type == KEYDOWN:
@@ -409,17 +329,17 @@ class Game:
                 if event.key == K_DOWN:
                     self.player1.setMovingDown(False)       
 
-            if event.type == QUIT:
+            if event.type == pygame.locals.QUIT:
                 self.quitGame()
         return False
     
     def updateFOV(self, tileBlocked, markVisible, markLit):
-        self.fovMap = [[UNKNOWN for j in range(self.numRows)] for i in range(self.numCols)]
+        self.fovMap = [[UNKNOWN]*self.numRows for i in range(self.numCols)]
 
         xCoord = self.getCoordX(self.player1.x)
         yCoord = self.getCoordY(self.player1.y)
         
-        fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, PLAYERRANGE, \
+        fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, PLAYER_RANGE, \
             markVisible, tileBlocked)
 
         for guard in self.guards:
@@ -427,12 +347,12 @@ class Game:
                 xCoord = self.getCoordX(guard.x)
                 yCoord = self.getCoordY(guard.y)
 
-                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, GUARDRANGE, \
+                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, GUARD_RANGE, \
                     markLit, tileBlocked)
 
     def guardFovInRange(self, guard):
         return self.getDist(guard.x, guard.y) <= \
-            ((PLAYERRANGE + GUARDRANGE) * TILESIZE)**2
+            ((PLAYER_RANGE + GUARD_RANGE) * TILESIZE)**2
 
     def quitGame(self):
         pygame.quit()
@@ -441,7 +361,7 @@ class Game:
 def main():
     g = Game()
     g.run()
-    g.quitGame
+    g.quitGame()
 
 if __name__ == '__main__':
     main()

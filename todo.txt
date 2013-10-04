@@ -1,7 +1,5 @@
 SHORT:
-game menu - play, credits, exit
 agent colors
-level choice screen
 
 MID:
 player sprites
@@ -10,10 +8,10 @@ fix clamp bug
 check center not topleft ie player dist to coord
 music
 set color lapha by distance from agent
+level choice screen
 
 LONG:
 splashscreen
-
 
 MAYBE:
 scrolling?
