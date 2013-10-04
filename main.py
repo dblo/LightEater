@@ -22,6 +22,7 @@ class Game:
         self.xMargin     = (WIDTH - TILESIZE  * self.numCols) / 2 
         self.fogMap      = [[UNEXPLORED]*self.numRows for i in range(self.numCols)]
         self.fovMap      = []
+        self.lightMap    = [[None]*self.numRows for i in range(self.numCols)]
 
         self.displaySurf = pygame.display.set_mode((WIDTH, HEIGHT))
         self.levelSurf   = pygame.Surface((self.numCols * TILESIZE, \
@@ -30,7 +31,7 @@ class Game:
 
         self.makeLevelSurf()
 
-        self.colorDict = {'VR' : RED, 'VB' : BLUE, 'VP' : PURPLE}
+        self.colorDict = {'R' : RED, 'B' : BLUE, 'P' : PURPLE}
 
         pygame.display.set_caption("Splinter block")
 
@@ -72,8 +73,8 @@ class Game:
                     pygame.draw.rect(self.levelSurf, GREEN, tileRect)
 
     def checkIfDied(self):
-        color = self.fovMap[self.getPlayerCoordX()][self.getPlayerCoordY()]
-        if color is not VISIBLE and color not in self.crystalsFound:
+        color = self.lightMap[self.getPlayerCoordX()][self.getPlayerCoordY()]
+        if color is not None and color not in self.crystalsFound:
             return True
         return False
 
@@ -282,10 +283,10 @@ class Game:
                 #if self.fovMap[col][row] is LIT:
                  #   pass#pygame.draw.rect(self.workSurf, RED, tileRect)
 
-                if self.fovMap[col][row][0] is not NONE:
-                    if len(self.fovMap[col][row]) > 1:
-                        fog.fill(self.colorDict[self.fovMap[col][row]])
-                        fog.set_alpha(228)
+                if self.fovMap[col][row] is VISIBLE:
+                    if self.lightMap[col][row] is not None:
+                        fog.fill(self.colorDict[self.lightMap[col][row]])
+                        fog.set_alpha(255)
                         self.workSurf.blit(fog, (x, y))
                         fog.fill(BLACK)
 
@@ -339,6 +340,9 @@ class Game:
     def getDist(self, x, y):
         return abs(self.player1.x - x)**2 + abs(self.player1.y - y)**2
 
+    def get2pDist(self, x, y, x1, y1):
+        return abs(x1 - x)**2 + abs(y1 - y)**2
+
     def setFogAlpha(self, fog, dist):
         alpha = (dist / (TILESIZE**2)) * 7
         fog.set_alpha(alpha)
@@ -378,6 +382,7 @@ class Game:
     
     def updateFOV(self, tileBlocked, markVisible):
         self.fovMap = [[NONE]*self.numRows for i in range(self.numCols)]
+        self.lightMap    = [[None]*self.numRows for i in range(self.numCols)]
 
         xCoord = self.getPlayerCoordX()
         yCoord = self.getPlayerCoordY()
@@ -392,7 +397,10 @@ class Game:
 
                 def markLit(x, y):
                     if self.fovMap[x][y] == VISIBLE:
-                        self.fovMap[x][y] += guard.color
+                        self.lightMap[x][y] = guard.color
+                        #self.lightMap[x][y].append((guard.color, \
+                         # (self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
+                          #  / TILESIZESQ)*6
 
                 fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, GUARD_RANGE, \
                     markLit, tileBlocked)
