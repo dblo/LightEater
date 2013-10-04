@@ -1,9 +1,7 @@
 SHORT:
+remake fov/color map !!!
 crystals
-player has colors
 absorbing enemy check
-agent colors
-agents empty check
 on win screen
 
 MID:
@@ -22,3 +20,5 @@ MAYBE:
 scrolling?
 agents stop/change pattern/speed?
 at start of map is shown hint/map reveal momentarily7
+
+fog/fov as tuples?

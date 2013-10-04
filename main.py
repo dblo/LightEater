@@ -15,7 +15,8 @@ class Game:
         self.level       = None
         self.spawnPos    = None
         self.guards      = []
-        self.colorsFound = []
+        self.crystalsFound = []
+        self.crystals    = []
         self.loadLevel()
         self.yMargin     = (HEIGHT - TILESIZE * self.numRows) / 2
         self.xMargin     = (WIDTH - TILESIZE  * self.numCols) / 2 
@@ -28,6 +29,9 @@ class Game:
         self.workSurf    = self.levelSurf.copy().convert_alpha()
 
         self.makeLevelSurf()
+
+        self.colorDict = {'VR' : RED, 'VB' : BLUE, 'VP' : PURPLE}
+
         pygame.display.set_caption("Splinter block")
 
     def loadLevel(self):
@@ -48,10 +52,11 @@ class Game:
             self.level[0][i] = WALL
             self.level[self.numCols-1][i] = WALL
 
+        self.crystals.append((2,1))
         self.spawnPos   = (1, 1)
         self.player1    = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
         self.guards.append(Agent(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1, 'R'))
-        self.guards.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 2, 'B'))
+        self.guards.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1, 'B'))
         self.guards.append(Agent(((5,5), (5,19)), 1, 'P'))
 
     def makeLevelSurf(self):
@@ -67,8 +72,8 @@ class Game:
                     pygame.draw.rect(self.levelSurf, GREEN, tileRect)
 
     def checkIfDied(self):
-        color = self.fovMap[self.getCoordX(self.player1.x)][self.getCoordY(self.player1.y)]
-        if color is not VISIBLE and color not in self.colorsFound:
+        color = self.fovMap[self.getPlayerCoordX()][self.getPlayerCoordY()]
+        if color is not VISIBLE and color not in self.crystalsFound:
             return True
         return False
 
@@ -198,6 +203,13 @@ class Game:
 
             if self.checkIfDied():
                 self.respawn()
+                #Update fov immediatly after respawn
+                fovCounter = 0
+
+            self.checkIfFoundCrystal()
+
+            if self.checkLevelCompleted():
+                return MENU
 
             self.render()
             fpsClock.tick(FPS)
@@ -205,6 +217,18 @@ class Game:
     def respawn(self):
         self.player1.x = self.spawnPos[0] * TILESIZE
         self.player1.y = self.spawnPos[1] * TILESIZE
+
+    def checkIfFoundCrystal(self):
+        if self.level[self.getPlayerCoordX()][self.getPlayerCoordY()] \
+            is not OPEN:
+            #add checks
+            pass
+
+    # Return true if level is completed
+    def checkLevelCompleted(self):
+        if not self.guards:
+            return True
+        return False
 
     def movePlayer(self, player):
         rect = pygame.Rect(player.x, player.y, PLAYERSIZE-1, PLAYERSIZE-1)
@@ -247,6 +271,7 @@ class Game:
         self.renderGuards()
         self.renderPlayer()
 
+        #TODO only update tiles within player range + some
         for row in range(self.numRows):
             for col in range(self.numCols):
                 x = col * TILESIZE
@@ -257,9 +282,12 @@ class Game:
                 #if self.fovMap[col][row] is LIT:
                  #   pass#pygame.draw.rect(self.workSurf, RED, tileRect)
 
-                if self.fovMap[col][row] is not NONE:
-                    if self.fovMap[col][row] is not VISIBLE:
-                        pass #draw col
+                if self.fovMap[col][row][0] is not NONE:
+                    if len(self.fovMap[col][row]) > 1:
+                        fog.fill(self.colorDict[self.fovMap[col][row]])
+                        fog.set_alpha(228)
+                        self.workSurf.blit(fog, (x, y))
+                        fog.fill(BLACK)
 
                     alpha = (self.getDist(x, y) / TILESIZESQ)*6
                     if alpha > FOG_ALPHA:
@@ -287,8 +315,8 @@ class Game:
             y = self.getCoordY(guard.y)
 
             if self.fovMap[x][y] is guard.color:
-                pygame.draw.rect(self.workSurf, RED, pygame.Rect(guard.x, \
-                    guard.y, GUARDSIZE, GUARDSIZE))
+                pygame.draw.rect(self.workSurf, self.colorDict[guard.color], \
+                    pygame.Rect(guard.x, guard.y, GUARDSIZE, GUARDSIZE))
 
     # Return tilegrid x-coordinate
     def getCoordX(self, pos):
@@ -297,6 +325,14 @@ class Game:
     # Return tilegrid y-coordinate
     def getCoordY(self, pos):
         return (pos + HALFPLAYERSIZE) / TILESIZE
+
+    # Return tilegrid x-coordinate
+    def getPlayerCoordX(self):
+        return (self.player1.x + HALFPLAYERSIZE) / TILESIZE
+
+    # Return tilegrid y-coordinate
+    def getPlayerCoordY(self):
+        return (self.player1.y + HALFPLAYERSIZE) / TILESIZE
 
     # Return distance between player and (x,y) as squaresum
     # TODO? Currently uses player topleft not center
@@ -343,8 +379,8 @@ class Game:
     def updateFOV(self, tileBlocked, markVisible):
         self.fovMap = [[NONE]*self.numRows for i in range(self.numCols)]
 
-        xCoord = self.getCoordX(self.player1.x)
-        yCoord = self.getCoordY(self.player1.y)
+        xCoord = self.getPlayerCoordX()
+        yCoord = self.getPlayerCoordY()
         
         fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, PLAYER_RANGE, \
             markVisible, tileBlocked)
@@ -356,7 +392,7 @@ class Game:
 
                 def markLit(x, y):
                     if self.fovMap[x][y] == VISIBLE:
-                        self.fovMap[x][y] = guard.color
+                        self.fovMap[x][y] += guard.color
 
                 fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, GUARD_RANGE, \
                     markLit, tileBlocked)
