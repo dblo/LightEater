@@ -1,17 +1,22 @@
 SHORT:
+crystals
+player has colors
+absorbing enemy check
 agent colors
+agents empty check
+on win screen
 
 MID:
 player sprites
 import map
 fix clamp bug
-check center not topleft ie player dist to coord
 music
-set color lapha by distance from agent
+set color alpha by distance from agent
 level choice screen
 
 LONG:
 splashscreen
+on menu, show arrows=move, enter/esc=choose/back-up
 
 MAYBE:
 scrolling?

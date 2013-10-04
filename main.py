@@ -15,7 +15,7 @@ class Game:
         self.level       = None
         self.spawnPos    = None
         self.guards      = []
-
+        self.colorsFound = []
         self.loadLevel()
         self.yMargin     = (HEIGHT - TILESIZE * self.numRows) / 2
         self.xMargin     = (WIDTH - TILESIZE  * self.numCols) / 2 
@@ -50,9 +50,9 @@ class Game:
 
         self.spawnPos   = (1, 1)
         self.player1    = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
-        self.guards.append(Agent(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1))
-        self.guards.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1))
-        self.guards.append(Agent(((5,5), (5,19)), 1))        
+        self.guards.append(Agent(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1, 'R'))
+        self.guards.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 2, 'B'))
+        self.guards.append(Agent(((5,5), (5,19)), 1, 'P'))
 
     def makeLevelSurf(self):
         for row in range(self.numRows):
@@ -65,6 +65,12 @@ class Game:
                     pygame.draw.rect(self.levelSurf, GRAY, tileRect)
                 elif self.level[col][row] == OPEN:
                     pygame.draw.rect(self.levelSurf, GREEN, tileRect)
+
+    def checkIfDied(self):
+        color = self.fovMap[self.getCoordX(self.player1.x)][self.getCoordY(self.player1.y)]
+        if color is not VISIBLE and color not in self.colorsFound:
+            return True
+        return False
 
     def run(self):
         fpsClock    = pygame.time.Clock()
@@ -172,13 +178,8 @@ class Game:
 
         # Player has LOS on (x,y)
         def markVisible(x, y): 
-            self.fovMap[x][y] = INLOS
+            self.fovMap[x][y] = VISIBLE
             self.fogMap[x][y] = EXPLORED
-
-        # Agent had LOS on (x,y)
-        def markLit(x, y):
-            if self.fovMap[x][y] == INLOS:
-                self.fovMap[x][y] = LIT
 
         while 1:
             quit = self.handleInput()
@@ -190,18 +191,20 @@ class Game:
                 guard.move()
 
             if fovCounter == 0:
-                self.updateFOV(tileBlockes, markVisible, markLit)
-                self.checkIfCaught()
+                self.updateFOV(tileBlockes, markVisible)
                 fovCounter = FOV_UPDATE_RATE
             else:
                 fovCounter -= 1
+
+            if self.checkIfDied():
+                self.respawn()
+
             self.render()
             fpsClock.tick(FPS)
 
-    def checkIfCaught(self):
-        if self.fovMap[(self.player1.x) / TILESIZE] \
-            [(self.player1.y) / TILESIZE] == LIT:
-            pass
+    def respawn(self):
+        self.player1.x = self.spawnPos[0] * TILESIZE
+        self.player1.y = self.spawnPos[1] * TILESIZE
 
     def movePlayer(self, player):
         rect = pygame.Rect(player.x, player.y, PLAYERSIZE-1, PLAYERSIZE-1)
@@ -251,10 +254,13 @@ class Game:
 
                 tileRect = pygame.Rect(x, y, TILESIZE, TILESIZE)
              
-                if self.fovMap[col][row] is LIT:
-                    pass#pygame.draw.rect(self.workSurf, RED, tileRect)
+                #if self.fovMap[col][row] is LIT:
+                 #   pass#pygame.draw.rect(self.workSurf, RED, tileRect)
 
-                if self.fovMap[col][row] >= INLOS:
+                if self.fovMap[col][row] is not NONE:
+                    if self.fovMap[col][row] is not VISIBLE:
+                        pass #draw col
+
                     alpha = (self.getDist(x, y) / TILESIZESQ)*6
                     if alpha > FOG_ALPHA:
                         fog.set_alpha(FOG_ALPHA)
@@ -280,7 +286,7 @@ class Game:
             x = self.getCoordX(guard.x)
             y = self.getCoordY(guard.y)
 
-            if self.fovMap[x][y] >= INLOS:
+            if self.fovMap[x][y] is guard.color:
                 pygame.draw.rect(self.workSurf, RED, pygame.Rect(guard.x, \
                     guard.y, GUARDSIZE, GUARDSIZE))
 
@@ -293,6 +299,7 @@ class Game:
         return (pos + HALFPLAYERSIZE) / TILESIZE
 
     # Return distance between player and (x,y) as squaresum
+    # TODO? Currently uses player topleft not center
     def getDist(self, x, y):
         return abs(self.player1.x - x)**2 + abs(self.player1.y - y)**2
 
@@ -333,8 +340,8 @@ class Game:
                 self.quitGame()
         return False
     
-    def updateFOV(self, tileBlocked, markVisible, markLit):
-        self.fovMap = [[UNKNOWN]*self.numRows for i in range(self.numCols)]
+    def updateFOV(self, tileBlocked, markVisible):
+        self.fovMap = [[NONE]*self.numRows for i in range(self.numCols)]
 
         xCoord = self.getCoordX(self.player1.x)
         yCoord = self.getCoordY(self.player1.y)
@@ -346,6 +353,10 @@ class Game:
             if self.guardFovInRange(guard):
                 xCoord = self.getCoordX(guard.x)
                 yCoord = self.getCoordY(guard.y)
+
+                def markLit(x, y):
+                    if self.fovMap[x][y] == VISIBLE:
+                        self.fovMap[x][y] = guard.color
 
                 fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, GUARD_RANGE, \
                     markLit, tileBlocked)

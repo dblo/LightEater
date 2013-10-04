@@ -9,13 +9,17 @@ PLAYER_RANGE    = 6
 GUARD_RANGE     = 3
 WIDTH           = 1600
 HEIGHT          = 800
+# Level
 WALL            = 0
 OPEN            = 1
+# Fog
 UNEXPLORED      = 0
 EXPLORED        = 1
-LIT             = 2
-INLOS           = 1
-UNKNOWN         = 0
+# FoV
+NONE            = 'N'
+VISIBLE         = 'V'
+
+# Game mode
 MENU            = 0
 PLAY            = 1
 QUIT            = 3
