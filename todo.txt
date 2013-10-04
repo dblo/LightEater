@@ -1,7 +1,5 @@
 SHORT:
-crystals
-absorbing enemy check
-on win screen
+crystal, player visual
 
 MID:
 player sprites
@@ -10,6 +8,7 @@ fix clamp bug
 music
 set color alpha by distance from agent
 level choice screen
+on win screen
 
 LONG:
 splashscreen

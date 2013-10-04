@@ -11,10 +11,10 @@ class Game:
         pygame.init()
         self.numRows     = None
         self.numCols     = None
-        self.player1     = None
+        self.player      = None
         self.level       = None
         self.spawnPos    = None
-        self.guards      = []
+        self.agents      = []
         self.crystalsFound = []
         self.crystals    = []
         self.loadLevel()
@@ -51,10 +51,10 @@ class Game:
             self.level[self.numCols-1][i] = WALL
 
         self.spawnPos   = (1, 1)
-        self.player1    = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
-        self.guards.append(Agent(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1, 'R'))
-        self.guards.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1, 'B'))
-        self.guards.append(Agent(((5,5), (5,19)), 1, 'P'))
+        self.player    = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
+ #       self.agents.append(Agent(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1, 'R'))
+        self.agents.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1, 'P'))
+        self.agents.append(Agent(((5,5), (5,19)), 1, 'P'))
         self.crystals.append((3,1,'P'))
 
     def makeLevelSurf(self):
@@ -67,17 +67,27 @@ class Game:
                 if self.level[col][row] == WALL:
                     pygame.draw.rect(self.levelSurf, GRAY, tileRect)
                 elif self.level[col][row] == OPEN:
-                    pygame.draw.rect(self.levelSurf, GREEN, tileRect)
+                    pygame.draw.rect(self.levelSurf, YELLOW, tileRect)
 
-    def checkIfDied(self):
-        color = self.lightMap[self.getPlayerCoordX()][self.getPlayerCoordY()]
-        if color is not None and color not in self.crystalsFound:
-            return True
-        return False
+    # Return true if player died or absorbed a light
+    def checkInLight(self):
+        agent = self.lightMap[self.getPlayerCoordX()][self.getPlayerCoordY()]
+        if agent is None:
+            return False
+
+        if agent.color not in self.crystalsFound:
+            self.respawn()
+        else:
+            self.absorbLight(agent)
+        return True
+
+    def absorbLight(self, agent):
+        #inc
+        self.agents.remove(agent)
 
     def run(self):
-        fpsClock    = pygame.time.Clock()
-        gameMode    = MENU
+        fpsClock = pygame.time.Clock()
+        gameMode = MENU
 
         while gameMode is not QUIT:
             self.displaySurf.fill(BLACK)
@@ -188,8 +198,8 @@ class Game:
             if quit is True:
                 return MENU
 
-            self.movePlayer(self.player1)
-            for guard in self.guards:
+            self.movePlayer(self.player)
+            for guard in self.agents:
                 guard.move()
 
             if fovCounter == 0:
@@ -198,9 +208,7 @@ class Game:
             else:
                 fovCounter -= 1
 
-            if self.checkIfDied():
-                self.respawn()
-                #Update fov immediatly after respawn
+            if self.checkInLight():
                 fovCounter = 0
 
             self.checkIfFoundCrystal()
@@ -212,8 +220,8 @@ class Game:
             fpsClock.tick(FPS)
 
     def respawn(self):
-        self.player1.x = self.spawnPos[0] * TILESIZE
-        self.player1.y = self.spawnPos[1] * TILESIZE
+        self.player.x = self.spawnPos[0] * TILESIZE
+        self.player.y = self.spawnPos[1] * TILESIZE
 
     def checkIfFoundCrystal(self):
         i = 0
@@ -228,7 +236,7 @@ class Game:
 
     # Return true if level is completed
     def checkLevelCompleted(self):
-        if not self.guards:
+        if not self.agents:
             return True
         return False
 
@@ -298,10 +306,14 @@ class Game:
              
                 if self.tileLit(col, row):
                     if self.tileColored(col, row):
-                        fog.fill(self.colorDict[self.lightMap[col][row]])
-                        fog.set_alpha(255)
-                        self.workSurf.blit(fog, (x, y))
-                        fog.fill(BLACK)
+                        agent = self.lightMap[col][row]
+                        alpha = abs(255 - (self.get2pDist(x, y, agent.x, agent.y) / TILESIZESQ)*12)
+
+                        if alpha > 220:
+                            fog.fill(self.colorDict[agent.color])
+                            fog.set_alpha(alpha)
+                            self.workSurf.blit(fog, (x, y))
+                            fog.fill(BLACK)
 
                     alpha = (self.getDist(x, y) / TILESIZESQ)*6
                     if alpha > FOG_ALPHA:
@@ -321,11 +333,15 @@ class Game:
         pygame.display.update()
 
     def renderPlayer(self):
-        pygame.draw.rect(self.workSurf, BLUE, pygame.Rect(self.player1.x, \
-            self.player1.y, PLAYERSIZE, PLAYERSIZE))
+        pygame.draw.rect(self.workSurf, BLUE, pygame.Rect(self.player.x, \
+            self.player.y, PLAYERSIZE, PLAYERSIZE/3))
+        pygame.draw.rect(self.workSurf, RED, pygame.Rect(self.player.x, \
+            self.player.y + PLAYERSIZE/3, PLAYERSIZE, PLAYERSIZE/3))
+        pygame.draw.rect(self.workSurf, GREEN, pygame.Rect(self.player.x, \
+            self.player.y + (PLAYERSIZE*2)/3, PLAYERSIZE, PLAYERSIZE/3))
 
     def renderGuards(self): pass
-        # for guard in self.guards:
+        # for guard in self.agents:
         #     x = self.getCoordX(guard.x)
         #     y = self.getCoordY(guard.y)
         #
@@ -343,16 +359,16 @@ class Game:
 
     # Return tilegrid x-coordinate
     def getPlayerCoordX(self):
-        return (self.player1.x + HALFPLAYERSIZE) / TILESIZE
+        return (self.player.x + HALFPLAYERSIZE) / TILESIZE
 
     # Return tilegrid y-coordinate
     def getPlayerCoordY(self):
-        return (self.player1.y + HALFPLAYERSIZE) / TILESIZE
+        return (self.player.y + HALFPLAYERSIZE) / TILESIZE
 
     # Return distance between player and (x,y) as squaresum
     # TODO? Currently uses player topleft not center
     def getDist(self, x, y):
-        return abs(self.player1.x - x)**2 + abs(self.player1.y - y)**2
+        return abs(self.player.x - x)**2 + abs(self.player.y - y)**2
 
     def get2pDist(self, x, y, x1, y1):
         return abs(x1 - x)**2 + abs(y1 - y)**2
@@ -370,25 +386,25 @@ class Game:
         for event in pygame.event.get():
             if event.type == KEYDOWN:
                 if event.key == K_LEFT:
-                    self.player1.setMovingLeft(True)
+                    self.player.setMovingLeft(True)
                 if event.key == K_RIGHT:
-                    self.player1.setMovingRight(True)       
+                    self.player.setMovingRight(True)       
                 if event.key == K_UP:
-                    self.player1.setMovingUp(True)                           
+                    self.player.setMovingUp(True)                           
                 if event.key == K_DOWN:
-                    self.player1.setMovingDown(True)       
+                    self.player.setMovingDown(True)       
                 if event.key == K_ESCAPE:
                     return True
 
             if event.type == KEYUP:
                 if event.key == K_LEFT:
-                    self.player1.setMovingLeft(False)
+                    self.player.setMovingLeft(False)
                 if event.key == K_RIGHT:
-                    self.player1.setMovingRight(False)       
+                    self.player.setMovingRight(False)       
                 if event.key == K_UP:
-                    self.player1.setMovingUp(False)                           
+                    self.player.setMovingUp(False)                           
                 if event.key == K_DOWN:
-                    self.player1.setMovingDown(False)       
+                    self.player.setMovingDown(False)       
 
             if event.type == pygame.locals.QUIT:
                 self.quitGame()
@@ -409,14 +425,14 @@ class Game:
         fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, PLAYER_RANGE, \
             markVisible, tileBlocked)
 
-        for guard in self.guards:
+        for guard in self.agents:
             if self.guardFovInRange(guard):
                 xCoord = self.getCoordX(guard.x)
                 yCoord = self.getCoordY(guard.y)
 
                 def markColored(x, y):
                     if self.tileLit(x, y):
-                        self.lightMap[x][y] = guard.color
+                        self.lightMap[x][y] = guard
                         #self.lightMap[x][y].append((guard.color, \
                          # (self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
                           #  / TILESIZESQ)*6
