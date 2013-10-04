@@ -13,11 +13,11 @@ HEIGHT          = 800
 WALL            = 0
 OPEN            = 1
 # Fog
-UNEXPLORED      = 0
-EXPLORED        = 1
+UNEXPLORED      = False
+EXPLORED        = True
 # FoV
-NONE            = 'N'
-VISIBLE         = 'V'
+UNLIT            = False
+LIT              = True
 
 # Game mode
 MENU            = 0

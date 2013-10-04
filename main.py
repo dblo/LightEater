@@ -20,8 +20,7 @@ class Game:
         self.loadLevel()
         self.yMargin     = (HEIGHT - TILESIZE * self.numRows) / 2
         self.xMargin     = (WIDTH - TILESIZE  * self.numCols) / 2 
-        self.fogMap      = [[UNEXPLORED]*self.numRows for i in range(self.numCols)]
-        self.fovMap      = []
+        self.visibilityMap = [[[UNEXPLORED, UNLIT]]*self.numRows for i in range(self.numCols)]
         self.lightMap    = [[None]*self.numRows for i in range(self.numCols)]
 
         self.displaySurf = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -30,9 +29,7 @@ class Game:
         self.workSurf    = self.levelSurf.copy().convert_alpha()
 
         self.makeLevelSurf()
-
         self.colorDict = {'R' : RED, 'B' : BLUE, 'P' : PURPLE}
-
         pygame.display.set_caption("Splinter block")
 
     def loadLevel(self):
@@ -53,12 +50,12 @@ class Game:
             self.level[0][i] = WALL
             self.level[self.numCols-1][i] = WALL
 
-        self.crystals.append((2,1))
         self.spawnPos   = (1, 1)
         self.player1    = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
         self.guards.append(Agent(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1, 'R'))
         self.guards.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1, 'B'))
         self.guards.append(Agent(((5,5), (5,19)), 1, 'P'))
+        self.crystals.append((3,1,'P'))
 
     def makeLevelSurf(self):
         for row in range(self.numRows):
@@ -184,8 +181,7 @@ class Game:
 
         # Player has LOS on (x,y)
         def markVisible(x, y): 
-            self.fovMap[x][y] = VISIBLE
-            self.fogMap[x][y] = EXPLORED
+            self.visibilityMap[x][y] = [EXPLORED, LIT]
 
         while 1:
             quit = self.handleInput()
@@ -220,10 +216,15 @@ class Game:
         self.player1.y = self.spawnPos[1] * TILESIZE
 
     def checkIfFoundCrystal(self):
-        if self.level[self.getPlayerCoordX()][self.getPlayerCoordY()] \
-            is not OPEN:
-            #add checks
-            pass
+        i = 0
+        while i < len(self.crystals):
+            xCoord = self.getPlayerCoordX()
+            yCoord = self.getPlayerCoordY()
+            if xCoord is self.crystals[i][0] and yCoord is self.crystals[i][1]:
+                self.crystalsFound.append(self.crystals[i][2])
+                del self.crystals[i]
+                break
+            i += 1
 
     # Return true if level is completed
     def checkLevelCompleted(self):
@@ -264,6 +265,21 @@ class Game:
             else:
                 player.y += PLAYERSPEED
 
+    def tileLit(self, x, y):
+        if self.visibilityMap[x][y][1] is LIT:
+            return True
+        return False
+
+    def tileExplored(self, x, y):
+        if self.visibilityMap[x][y][0] is EXPLORED:
+            return True
+        return False
+
+    def tileColored(self, x, y):
+        if self.lightMap[x][y] is None:
+            return False
+        return True
+
     def render(self):
         fog = pygame.Surface((TILESIZE, TILESIZE))
         fog.fill(BLACK)
@@ -280,11 +296,8 @@ class Game:
 
                 tileRect = pygame.Rect(x, y, TILESIZE, TILESIZE)
              
-                #if self.fovMap[col][row] is LIT:
-                 #   pass#pygame.draw.rect(self.workSurf, RED, tileRect)
-
-                if self.fovMap[col][row] is VISIBLE:
-                    if self.lightMap[col][row] is not None:
+                if self.tileLit(col, row):
+                    if self.tileColored(col, row):
                         fog.fill(self.colorDict[self.lightMap[col][row]])
                         fog.set_alpha(255)
                         self.workSurf.blit(fog, (x, y))
@@ -296,7 +309,8 @@ class Game:
                     else:
                         fog.set_alpha(alpha)
                     self.workSurf.blit(fog, (x, y))
-                elif self.fogMap[col][row] is EXPLORED:
+                elif self.tileExplored(col, row):
+
                     fog.set_alpha(FOG_ALPHA)
                     self.workSurf.blit(fog, (x, y))
                 else:
@@ -310,14 +324,14 @@ class Game:
         pygame.draw.rect(self.workSurf, BLUE, pygame.Rect(self.player1.x, \
             self.player1.y, PLAYERSIZE, PLAYERSIZE))
 
-    def renderGuards(self):
-        for guard in self.guards:
-            x = self.getCoordX(guard.x)
-            y = self.getCoordY(guard.y)
-
-            if self.fovMap[x][y] is guard.color:
-                pygame.draw.rect(self.workSurf, self.colorDict[guard.color], \
-                    pygame.Rect(guard.x, guard.y, GUARDSIZE, GUARDSIZE))
+    def renderGuards(self): pass
+        # for guard in self.guards:
+        #     x = self.getCoordX(guard.x)
+        #     y = self.getCoordY(guard.y)
+        #
+            # if self.fovMap[x][y] is guard.color:
+            #     pygame.draw.rect(self.workSurf, self.colorDict[guard.color], \
+            #         pygame.Rect(guard.x, guard.y, GUARDSIZE, GUARDSIZE))
 
     # Return tilegrid x-coordinate
     def getCoordX(self, pos):
@@ -379,11 +393,16 @@ class Game:
             if event.type == pygame.locals.QUIT:
                 self.quitGame()
         return False
-    
-    def updateFOV(self, tileBlocked, markVisible):
-        self.fovMap = [[NONE]*self.numRows for i in range(self.numCols)]
-        self.lightMap    = [[None]*self.numRows for i in range(self.numCols)]
 
+    # Set all tiles to be unlit and uncolored
+    def resetFOV(self):
+        for col in range(self.numCols):
+            for row in range(self.numRows):
+                self.visibilityMap[col][row][1] = UNLIT
+                self.lightMap[col][row] = None
+
+    def updateFOV(self, tileBlocked, markVisible):
+        self.resetFOV()
         xCoord = self.getPlayerCoordX()
         yCoord = self.getPlayerCoordY()
         
@@ -395,15 +414,15 @@ class Game:
                 xCoord = self.getCoordX(guard.x)
                 yCoord = self.getCoordY(guard.y)
 
-                def markLit(x, y):
-                    if self.fovMap[x][y] == VISIBLE:
+                def markColored(x, y):
+                    if self.tileLit(x, y):
                         self.lightMap[x][y] = guard.color
                         #self.lightMap[x][y].append((guard.color, \
                          # (self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
                           #  / TILESIZESQ)*6
 
                 fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, GUARD_RANGE, \
-                    markLit, tileBlocked)
+                    markColored, tileBlocked)
 
     def guardFovInRange(self, guard):
         return self.getDist(guard.x, guard.y) <= \
