@@ -1,5 +1,5 @@
 SHORT:
-crystal, player visual
+player visual
 
 MID:
 player sprites

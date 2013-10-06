@@ -20,8 +20,9 @@ class Game:
         self.loadLevel()
         self.yMargin     = (HEIGHT - TILESIZE * self.numRows) / 2
         self.xMargin     = (WIDTH - TILESIZE  * self.numCols) / 2 
-        self.visibilityMap = [[[UNEXPLORED, UNLIT]]*self.numRows for i in range(self.numCols)]
+        self.visibilityMap = None
         self.lightMap    = [[None]*self.numRows for i in range(self.numCols)]
+        self.setVisibilityMap()
 
         self.displaySurf = pygame.display.set_mode((WIDTH, HEIGHT))
         self.levelSurf   = pygame.Surface((self.numCols * TILESIZE, \
@@ -29,7 +30,7 @@ class Game:
         self.workSurf    = self.levelSurf.copy().convert_alpha()
 
         self.makeLevelSurf()
-        self.colorDict = {'R' : RED, 'B' : BLUE, 'P' : PURPLE}
+        self.colorDict = {'R' : RED, 'B' : BLUE, 'P' : PURPLE, 'Y' : YELLOW}
         pygame.display.set_caption("Splinter block")
 
     def loadLevel(self):
@@ -51,12 +52,24 @@ class Game:
             self.level[self.numCols-1][i] = WALL
 
         self.spawnPos   = (1, 1)
-        self.player    = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
- #       self.agents.append(Agent(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1, 'R'))
-        self.agents.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1, 'P'))
+        self.player     = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
+        self.agents.append(Agent(((self.numCols-1,1), (self.numCols-1,18), (17,18), (17,1)), 1, 'R'))
+        self.agents.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1, 'Y'))
         self.agents.append(Agent(((5,5), (5,19)), 1, 'P'))
         self.crystals.append((3,1,'P'))
 
+    def setVisibilityMap(self):
+        self.visibilityMap = [[[UNEXPLORED, UNLIT] for j in range(self.numRows)] \
+         for i in range(self.numCols)]
+
+        for i in range(self.numCols):
+            self.visibilityMap[i][0][0] = EXPLORED
+            self.visibilityMap[i][self.numRows-1][0] = EXPLORED
+
+        for i in range(self.numRows):
+            self.visibilityMap[0][i][0] = EXPLORED
+            self.visibilityMap[self.numCols-1][i][0] = EXPLORED
+    
     def makeLevelSurf(self):
         for row in range(self.numRows):
             for col in range(self.numCols):
@@ -67,7 +80,7 @@ class Game:
                 if self.level[col][row] == WALL:
                     pygame.draw.rect(self.levelSurf, GRAY, tileRect)
                 elif self.level[col][row] == OPEN:
-                    pygame.draw.rect(self.levelSurf, YELLOW, tileRect)
+                    pygame.draw.rect(self.levelSurf, (0, 153, 153), tileRect)
 
     # Return true if player died or absorbed a light
     def checkInLight(self):
@@ -191,7 +204,9 @@ class Game:
 
         # Player has LOS on (x,y)
         def markVisible(x, y): 
-            self.visibilityMap[x][y] = [EXPLORED, LIT]
+            if self.getDist(x*TILESIZE, y*TILESIZE) / TILESIZESQ \
+                < PLAYER_RANGE**2:
+                self.visibilityMap[x][y] = [EXPLORED, LIT]
 
         while 1:
             quit = self.handleInput()
@@ -307,13 +322,12 @@ class Game:
                 if self.tileLit(col, row):
                     if self.tileColored(col, row):
                         agent = self.lightMap[col][row]
-                        alpha = abs(255 - (self.get2pDist(x, y, agent.x, agent.y) / TILESIZESQ)*12)
-
-                        if alpha > 220:
-                            fog.fill(self.colorDict[agent.color])
-                            fog.set_alpha(alpha)
-                            self.workSurf.blit(fog, (x, y))
-                            fog.fill(BLACK)
+                        alpha =  abs(255 - (self.get2pDist(x, y, agent.x, agent.y) \
+                            / TILESIZESQ)*12)
+                        fog.fill(self.colorDict[agent.color])
+                        fog.set_alpha(alpha)
+                        self.workSurf.blit(fog, (x, y))
+                        fog.fill(BLACK)
 
                     alpha = (self.getDist(x, y) / TILESIZESQ)*6
                     if alpha > FOG_ALPHA:
@@ -328,17 +342,36 @@ class Game:
                 else:
                     pygame.draw.rect(self.workSurf, BLACK, tileRect)
 
+        self.renderCrystals()
+
+        pygame.draw.rect(self.displaySurf, (0,0,255,59), pygame.Rect(self.xMargin, \
+            self.yMargin - TILESIZE, TILESIZE*self.numCols/2, TILESIZE))
+        pygame.draw.rect(self.displaySurf, (255,255,0,59), pygame.Rect(self.xMargin \
+            + TILESIZE*self.numCols/2, \
+            self.yMargin - TILESIZE, TILESIZE*self.numCols/2, TILESIZE))
+
         self.displaySurf.blit(self.levelSurf, (self.xMargin, self.yMargin))
         self.displaySurf.blit(self.workSurf, (self.xMargin, self.yMargin))
         pygame.display.update()
 
+    def renderCrystals(self):
+        for crystal in self.crystals:
+            if self.tileLit(crystal[0], crystal[1]):
+                rect = pygame.Rect(crystal[0]*TILESIZE, crystal[1]*TILESIZE, TILESIZE, TILESIZE)
+                pygame.draw.polygon(self.workSurf, self.colorDict[crystal[2]], \
+                    [[rect.midleft[0], rect.midleft[1]], \
+                    [rect.midtop[0], rect.midtop[1]], [rect.midright[0], rect.midright[1]], \
+                    [rect.midbottom[0], rect.midbottom[1]]], 0)
+
     def renderPlayer(self):
-        pygame.draw.rect(self.workSurf, BLUE, pygame.Rect(self.player.x, \
-            self.player.y, PLAYERSIZE, PLAYERSIZE/3))
-        pygame.draw.rect(self.workSurf, RED, pygame.Rect(self.player.x, \
-            self.player.y + PLAYERSIZE/3, PLAYERSIZE, PLAYERSIZE/3))
-        pygame.draw.rect(self.workSurf, GREEN, pygame.Rect(self.player.x, \
-            self.player.y + (PLAYERSIZE*2)/3, PLAYERSIZE, PLAYERSIZE/3))
+        pygame.draw.rect(self.workSurf, BLACK, pygame.Rect(self.player.x, \
+            self.player.y, PLAYERSIZE, PLAYERSIZE))
+        # pygame.draw.rect(self.workSurf, BLUE, pygame.Rect(self.player.x, \
+        #     self.player.y, PLAYERSIZE, PLAYERSIZE/3))
+        # pygame.draw.rect(self.workSurf, RED, pygame.Rect(self.player.x, \
+        #     self.player.y + PLAYERSIZE/3, PLAYERSIZE, PLAYERSIZE/3))
+        # pygame.draw.rect(self.workSurf, (255, 255, 0), pygame.Rect(self.player.x, \
+        #      self.player.y + (PLAYERSIZE*2)/3, PLAYERSIZE, PLAYERSIZE/3))
 
     def renderGuards(self): pass
         # for guard in self.agents:
@@ -431,11 +464,10 @@ class Game:
                 yCoord = self.getCoordY(guard.y)
 
                 def markColored(x, y):
-                    if self.tileLit(x, y):
-                        self.lightMap[x][y] = guard
-                        #self.lightMap[x][y].append((guard.color, \
-                         # (self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
-                          #  / TILESIZESQ)*6
+                    if self.tileLit(x, y) and \
+                        self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
+                        / TILESIZESQ <= GUARD_RANGE**2:
+                            self.lightMap[x][y] = guard
 
                 fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, GUARD_RANGE, \
                     markColored, tileBlocked)
