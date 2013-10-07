@@ -1,17 +1,19 @@
 SHORT:
-player visual
+crystal as object
+lightbar, color-alpha logic
+add level 1,2
 
 MID:
-player sprites
 import map
-fix clamp bug
 music
-set color alpha by distance from agent
 level choice screen
 on win screen
+player visual
 
 LONG:
+set color alpha by distance from agent
 splashscreen
+fix clamp bug
 on menu, show arrows=move, enter/esc=choose/back-up
 
 MAYBE:

@@ -6,11 +6,11 @@ TILESIZESQ      = TILESIZE**2
 WIDTH           = 1600
 HEIGHT          = 800
 # Entities
-PLAYERSIZE      = TILESIZE-2
+PLAYERSIZE      = TILESIZE
 HALFPLAYERSIZE  = PLAYERSIZE / 2
 GUARDSIZE       = TILESIZE
 PLAYER_RANGE    = 5
-GUARD_RANGE     = 2
+GUARD_RANGE     = 1
 # Level
 WALL            = 0
 OPEN            = 1
