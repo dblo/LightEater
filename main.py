@@ -5,37 +5,38 @@ from pygame.locals import KEYDOWN, KEYUP, K_DOWN, K_UP, K_LEFT, K_RIGHT, K_ESCAP
 from constants import *
 from player import Player
 from agent import Agent
+from crystal import Crystal
 
 class Game:
     def __init__(self):
         pygame.init()
-        self.numRows     = None
-        self.numCols     = None
-        self.player      = None
-        self.level       = None
-        self.spawnPos    = None
-        self.agents      = []
-        self.crystalsFound = []
-        self.crystals    = []
-        self.lightBarInfo = []
-        self.colorDict = {'R' : RED, 'B' : BLUE, 'P' : PURPLE, 'Y' : YELLOW}
-        self.currAlphaDict = {'R' : 0, 'B' : 0, 'P' : 0, 'Y' : 0}
-        self.incAlphaDict = {'R' : 0, 'B' : 0, 'P' : 0, 'Y' : 0}
+        pygame.display.set_caption("Color hunter")
 
-        self.loadLevel1()
-        self.yMargin     = (HEIGHT - TILESIZE * self.numRows) / 2
-        self.xMargin     = (WIDTH - TILESIZE  * self.numCols) / 2 
-        self.visibilityMap = None
-        self.lightMap    = [[None]*self.numRows for i in range(self.numCols)]
-        self.setVisibilityMap()
-
-        self.displaySurf = pygame.display.set_mode((WIDTH, HEIGHT))
-        self.levelSurf   = pygame.Surface((self.numCols * TILESIZE, \
-            self.numRows * TILESIZE))
-        self.workSurf    = self.levelSurf.copy().convert_alpha()
-        self.lightBarSurf = pygame.Surface((self.numCols * TILESIZE, TILESIZE)).convert()
-        self.makeLevelSurf()
-        pygame.display.set_caption("Splinter block")
+        self.numRows        = None
+        self.numCols        = None
+        self.player         = None
+        self.level          = None
+        self.spawnPos       = None
+        self.agents         = []
+        self.colorsFound    = []
+        self.crystals       = []
+        self.lightBarInfo   = []
+        self.colorDict      = {'R' : RED, 'B' : BLUE, 'P' : PURPLE, 'Y' : YELLOW, \
+                                'G' : GREEN, 'O' : ORANGE}
+        self.currAlphaDict  = None
+        self.incAlphaDict   = None
+        self.currLevel      = 1
+        self.maxLevel       = 2
+        self.yMargin        = None
+        self.xMargin        = None
+        self.visibilityMap  = None
+        self.lightMap       = None
+        self.updateLightBar = False
+        self.displaySurf    = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.levelSurf      = None
+        self.workSurf       = None
+        self.lightBarSurf   = None
+        self.elemWid        = 0
 
     def loadLevel(self):
         self.numRows    = 10
@@ -64,7 +65,13 @@ class Game:
     def loadLevel1(self):
         self.numRows    = 10
         self.numCols    = 10
+        self.yMargin    = (HEIGHT - TILESIZE * self.numRows) / 2
+        self.xMargin    = (WIDTH - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
+        self.currAlphaDict  = {'B' : 0}
+        self.incAlphaDict   = {'B' : 100}
+        self.lightBarInfo = ['B']*LIGHTBAR_ELEMS
+        self.updateLightBar = False
 
         for i in range(self.numCols):
             self.level[i][0] = WALL
@@ -80,14 +87,27 @@ class Game:
         for i in range(4):
             self.level[6][i+3] = WALL
 
-        self.lightBarInfo = [['B', 0]]*6
-
         self.spawnPos   = (1, 1)
         self.player     = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
         self.agents.append(Agent(((2,7), (2,8), (7,8), (7,7)), 1, 'B'))
         self.agents.append(Agent(((5,2), (5,7), (7,7), (7,2)), 1, 'B'))
-        self.crystals.append((8,1,'B',55))
-        self.incAlphaDict['B'] = 100
+        self.crystals.append(Crystal(2,1,'B'))
+        self.onNewLevel()
+
+    def onNewLevel(self):
+        self.setVisibilityMap()
+        self.lightMap       = [[None]*self.numRows for i in range(self.numCols)]
+        self.colorsFound    = []
+        self.levelSurf      = pygame.Surface((self.numCols * TILESIZE, \
+            self.numRows * TILESIZE))
+        self.workSurf       = self.levelSurf.copy().convert_alpha()
+        self.lightBarSurf   = pygame.Surface((self.numCols * TILESIZE, TILESIZE)).convert()
+
+        self.elemWid = (TILESIZE*self.numCols) / 6
+        if self.elemWid % 2 is 1:
+            self.elemWid += 1
+        self.lightBarElem = pygame.Surface((self.elemWid, TILESIZE)).convert()
+        self.makeLevelSurf()
 
     def setVisibilityMap(self):
         self.visibilityMap = [[[UNEXPLORED, UNLIT] for j in range(self.numRows)] \
@@ -119,7 +139,7 @@ class Game:
         if agent is None:
             return False
 
-        if agent.color not in self.crystalsFound:
+        if agent.color not in self.colorsFound:
             self.respawn()
         else:
             self.absorbLight(agent)
@@ -128,6 +148,7 @@ class Game:
     def absorbLight(self, agent):
         self.currAlphaDict[agent.color] += self.incAlphaDict[agent.color]
         self.agents.remove(agent)
+        self.updateLightBar = True
 
     def run(self):
         fpsClock = pygame.time.Clock()
@@ -225,10 +246,9 @@ class Game:
             pygame.display.update()
             fpsClock.tick(FPS)
 
-    #def handleMenuInput(self, activeChoice):
-
     def playing(self, fpsClock):
-        fovCounter  = 0        
+        fovCounter = 0        
+        self.loadLevel1()
 
         def tileBlockes(x, y): 
             return self.level[x][y] == WALL
@@ -260,7 +280,8 @@ class Game:
             self.checkIfFoundCrystal()
 
             if self.checkLevelCompleted():
-                pass#return MENU
+                print "level complete"
+                return MENU
 
             self.render()
             fpsClock.tick(FPS)
@@ -274,12 +295,15 @@ class Game:
         while i < len(self.crystals):
             xCoord = self.getPlayerCoordX()
             yCoord = self.getPlayerCoordY()
-            if xCoord is self.crystals[i][0] and yCoord is self.crystals[i][1]:
-                self.crystalsFound.append(self.crystals[i][2])
-                self.currAlphaDict[self.crystals[i][2]] += self.crystals[i][3]
+            crystal = self.crystals[i]
+
+            if xCoord is crystal.x and yCoord is crystal.y:
+                self.colorsFound.append(crystal.color)
+                self.currAlphaDict[crystal.color] += CRYSTAL_ALPHA
                 del self.crystals[i]
+                self.updateLightBar = True
                 break
-            i += 1
+            i += 1   
 
     # Return true if level is completed
     def checkLevelCompleted(self):
@@ -373,27 +397,27 @@ class Game:
                 else:
                     pygame.draw.rect(self.workSurf, BLACK, tileRect)
 
-
-        #for area in self.lightBarInfo:
-        #fog.set_alpha(area[1])
-        #fog.fill(area[0])
-        self.lightBarSurf.fill(BLACK)
-        fog.set_alpha(self.currAlphaDict['B'])
-        fog.fill(BLUE)
-        for i in range(self.numCols):
-            self.lightBarSurf.blit(fog, (i*TILESIZE, 0))
+        if(self.updateLightBar):
+            self.lightBarSurf.fill(BLACK)
+            for color in self.lightBarInfo:
+                self.lightBarElem.set_alpha(self.currAlphaDict[color])
+                self.lightBarElem.fill(self.colorDict[color])
+            for i in range(LIGHTBAR_ELEMS):
+                self.lightBarSurf.blit(self.lightBarElem, \
+                    (i*self.elemWid, 0))
+            self.displaySurf.blit(self.lightBarSurf, (self.xMargin, self.yMargin - TILESIZE))
+            self.updateLightBar = False
 
         self.renderCrystals()
-        self.displaySurf.blit(self.lightBarSurf, (self.xMargin, self.yMargin - TILESIZE))
         self.displaySurf.blit(self.levelSurf, (self.xMargin, self.yMargin))
         self.displaySurf.blit(self.workSurf, (self.xMargin, self.yMargin))
         pygame.display.update()
 
     def renderCrystals(self):
         for crystal in self.crystals:
-            if self.tileLit(crystal[0], crystal[1]):
-                rect = pygame.Rect(crystal[0]*TILESIZE, crystal[1]*TILESIZE, TILESIZE, TILESIZE)
-                pygame.draw.polygon(self.workSurf, self.colorDict[crystal[2]], \
+            if self.tileLit(crystal.x, crystal.y):
+                rect = pygame.Rect(crystal.x*TILESIZE, crystal.y*TILESIZE, TILESIZE, TILESIZE)
+                pygame.draw.polygon(self.workSurf, self.colorDict[crystal.color], \
                     [[rect.midleft[0], rect.midleft[1]], \
                     [rect.midtop[0], rect.midtop[1]], [rect.midright[0], rect.midright[1]], \
                     [rect.midbottom[0], rect.midbottom[1]]], 0)
