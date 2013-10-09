@@ -27,8 +27,8 @@ class Game:
         self.currAlphaDict  = {}
         self.incAlphaDict   = {}
         self.lightBarInfo   = {}
-        self.currLevel      = 2
-        self.maxLevel       = 2
+        self.currLevel      = 3
+        self.maxLevel       = 3
         self.yMargin        = None
         self.xMargin        = None
         self.numOfColors    = 0
@@ -79,6 +79,7 @@ class Game:
         self.setColorAlphas(agentColorDict)
         self.setMap(level, agentCount)
         self.setSurfaces()
+        self.setVisibilityMap()
 
     def setColorAlphas(self, agentColorDict):
         alphaToFill = MAX_ALPHA - BASE_ALPHA
@@ -147,7 +148,6 @@ class Game:
         return colorCountDict
 
     def setSurfaces(self):
-        self.setVisibilityMap()
         self.lightMap       = [[None]*self.numRows for i in range(self.numCols)]
         self.colorsFound    = []
         self.levelSurf      = pygame.Surface((self.numCols * TILESIZE, \
@@ -208,25 +208,28 @@ class Game:
         absColor = agent.color
         self.currAlphaDict[absColor] += self.incAlphaDict[absColor]
 
-        if absColor in ['B', 'Y', 'R']:
-            if self.numOfColors is 6:
+        if self.numOfColors is 6:
+            if absColor in ['B', 'Y']:
                 if self.colorMaxed('Y') and self.colorMaxed('B'):
                     self.lightBarInfo[1] = self.lightBarInfo[2] = 'G'
                     self.currAlphaDict['G'] = BASE_ALPHA
                     self.colorsFound.append('G')
+            if absColor in ['B', 'R']:
                 if self.colorMaxed('R') and self.colorMaxed('B'):
                     self.lightBarInfo[0] = self.lightBarInfo[5] = 'P'
                     self.currAlphaDict['P'] = BASE_ALPHA
                     self.colorsFound.append('P')
+            if absColor in ['R', 'Y']:
                 if self.colorMaxed('R') and self.colorMaxed('Y'):
                     self.lightBarInfo[3] = self.lightBarInfo[4] = 'O'
                     self.currAlphaDict['O'] = BASE_ALPHA
                     self.colorsFound.append('O')
             elif self.numOfColors is 3:
-                if self.colorMaxed('Y') and self.colorMaxed('B'):
-                    self.lightBarInfo[2] = self.lightBarInfo[3] = 'G'
-                    self.currAlphaDict['G'] = BASE_ALPHA
-                    self.colorsFound.append('G')
+                if absColor in ['B', 'Y', 'R']:
+                    if self.colorMaxed('Y') and self.colorMaxed('B'):
+                        self.lightBarInfo[2] = self.lightBarInfo[3] = 'G'
+                        self.currAlphaDict['G'] = BASE_ALPHA
+                        self.colorsFound.append('G')
 
         self.agents.remove(agent)
         self.updateLightBar = True
@@ -589,10 +592,15 @@ class Game:
 
     # Set all tiles to be unlit and uncolored
     def resetFOV(self):
-        for col in range(self.numCols):
-            for row in range(self.numRows):
-                self.visibilityMap[col][row][1] = UNLIT
-                self.lightMap[col][row] = None
+        if DEBUG:
+            for col in range(self.numCols):
+                for row in range(self.numRows):
+                    self.lightMap[col][row] = None
+        else:
+            for col in range(self.numCols):
+                for row in range(self.numRows):
+                    self.visibilityMap[col][row][1] = UNLIT
+                    self.lightMap[col][row] = None
 
     def updateFOV(self, tileBlocked, markVisible):
         if DEBUG:

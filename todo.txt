@@ -3,11 +3,10 @@ SHORT:
 MID:
 music
 level choice screen
-take time
-on win screen
-player visual
+take time show on win screen
 
 LONG:
+player visual
 set color alpha by distance from agent
 splashscreen
 fix clamp bug
