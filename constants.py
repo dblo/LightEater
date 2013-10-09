@@ -8,12 +8,13 @@ HEIGHT          = 800
 BASE_ALPHA      = 105
 MAX_ALPHA       = 255
 LIGHTBAR_ELEMS  = 6
+MAXTIME         = 10000
+DEATH_PENALTY   = 3
 # Entities
 PLAYERSIZE      = 16
 HALFPLAYERSIZE  = PLAYERSIZE / 2
 GUARDSIZE       = TILESIZE
 PLAYER_RANGE    = 5
-GUARD_RANGE     = 1
 # Level
 WALL            = 0
 OPEN            = 1
@@ -25,8 +26,9 @@ LIT             = True
 # Game mode
 MENU            = 0
 PLAY            = 1
-QUIT            = 3
-CREDITS         = 2
+LEVEL           = 2
+CREDITS         = 3
+QUIT            = 4
 FOG_ALPHA       = 150
 FOV_UPDATE_RATE = FPS / 4
 # Colors

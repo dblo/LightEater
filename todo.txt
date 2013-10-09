@@ -1,23 +1,22 @@
 SHORT:
+round player
 
 MID:
-music
-level choice screen
-take time show on win screen
 
 LONG:
-player visual
 set color alpha by distance from agent
-splashscreen
 fix clamp bug
 on menu, show arrows=move, enter/esc=choose/back-up
 
 MAYBE:
+splashscreen
+add silver/gold time to beat
 scrolling?
 agents stop/change pattern/speed?
 at start of map is shown hint/map reveal momentarily7
 check on entered new tile? add coord in player/agent. 
-
+player sprite
+graphics
 
 MAP ideas:
 fast guard

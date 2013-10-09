@@ -14,34 +14,39 @@ class Game:
         pygame.init()
         pygame.display.set_caption("Color hunter")
 
-        self.numRows        = None
-        self.numCols        = None
+        self.numRows        = 0
+        self.numCols        = 0
         self.player         = None
-        self.level          = None
-        self.spawnPos       = None
+        self.level          = 0
+        self.spawnPos       = (0,0)
+        self.yMargin        = 0
+        self.xMargin        = 0
+        self.numOfColors    = 0
+        self.elemWid        = 0
+        self.deathCount     = 0
         self.agents         = []
         self.colorsFound    = []
         self.crystals       = []
+        self.visibilityMap  = []
+        self.lightMap       = []
         self.colorDict      = {'R' : RED, 'B' : BLUE, 'P' : PURPLE, 'Y' : YELLOW, \
                                 'G' : GREEN, 'O' : ORANGE}
         self.currAlphaDict  = {}
         self.incAlphaDict   = {}
         self.lightBarInfo   = {}
-        self.currLevel      = 1
-        self.maxLevel       = 3
-        self.yMargin        = None
-        self.xMargin        = None
-        self.numOfColors    = 0
-        self.visibilityMap  = None
-        self.lightMap       = None
         self.updateLightBar = False
-        self.displaySurf    = pygame.display.set_mode((WIDTH, HEIGHT))
         self.levelSurf      = None
         self.workSurf       = None
         self.lightBarSurf   = None
-        self.elemWid        = 0
-        self.levelTime      = 0
+        self.displaySurf    = pygame.display.set_mode((WIDTH, HEIGHT))
 
+        self.currLevel      = 3
+        self.maxLevel       = 3
+        self.bestTimes      = [MAXTIME]*self.maxLevel
+
+        self.playMusic()
+
+    def playMusic(self):
         pygame.mixer.init()
         pygame.mixer.music.load('music.mp3')
         pygame.mixer.music.play(-1)
@@ -49,17 +54,26 @@ class Game:
     def loadLevel(self, levelNum):
         level = self.getLevel(levelNum)
 
+        levelDims = level[0].split()
         # +2 for surrounding walls
-        self.numCols    = int(level[0]) + 2
-        self.numRows    = int(level[1]) + 2
-        self.spawnPos   = (int(level[2].split()[0]), int(level[2].split()[1]))
+        self.numCols    = int(levelDims[0]) + 2
+        self.numRows    = int(levelDims[1]) + 2
+        self.spawnPos   = (int(level[1].split()[0]), int(level[1].split()[1]))
         self.player     = Player(TILESIZE*self.spawnPos[0]+1, TILESIZE*self.spawnPos[1]+1)
         self.yMargin    = (HEIGHT - TILESIZE * self.numRows) / 2
         self.xMargin    = (WIDTH - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
         self.updateLightBar = True
+
+        self.agents         = []
+        self.colorsFound    = []
+        self.crystals       = []
+        self.currAlphaDict  = {}
+        self.incAlphaDict   = {}
+        self.lightBarInfo   = {}
+        self.deathCount     = 0
         
-        crystalsList = level[3].split()
+        crystalsList = level[2].split()
         numOfCrystals = len(crystalsList) / 3
         for i in range(numOfCrystals):
             self.crystals.append(Crystal(int(crystalsList[i*3]), \
@@ -79,7 +93,7 @@ class Game:
         else:
             self.lightBarInfo   = ['B']*2 + ['Y']*2 + ['R']*2
 
-        agentCount = int(level[4])
+        agentCount = int(level[3])
         agentColorDict = self.addAgents(level, agentCount)
         self.setColorAlphas(agentColorDict)
         self.setMap(level, agentCount)
@@ -125,7 +139,7 @@ class Game:
 
     def setMap(self, level, agentCount):
         self.setSurroundingWall()
-        levelDescriptLine = 5 + agentCount
+        levelDescriptLine = 4 + agentCount
 
         # set inner area of map
         for row in range(1, self.numRows-1):
@@ -143,13 +157,14 @@ class Game:
 
         for i in range(agentCount):
             patrolList = []
-            coordList = level[5+i].split()
+            coordList = level[4+i].split()
 
-            for j in range((len(coordList)-1)/2):
+            for j in range((len(coordList)-3)/2):
                 patrolList.append((int(coordList[j*2]), int(coordList[j*2+1])))
             
-            self.agents.append(Agent(patrolList, coordList[-1]))
-            colorCountDict[coordList[-1]] += 1
+            self.agents.append(Agent(patrolList, coordList[-3], \
+                                 coordList[-2], coordList[-1]))
+            colorCountDict[coordList[-3]] += 1
         return colorCountDict
 
     def setSurfaces(self):
@@ -202,6 +217,7 @@ class Game:
 
         if agent.color not in self.colorsFound:
             self.respawn()
+            self.deathCount += 1
         else:
             self.absorbLight(agent)
         return True
@@ -247,31 +263,79 @@ class Game:
             self.displaySurf.fill(BLACK)
             if gameMode is MENU:
                 gameMode = self.showMenu(fpsClock)
+            elif gameMode is LEVEL:
+                gameMode = self.showLevelsMenu(fpsClock)
             elif gameMode is PLAY:
                 gameMode = self.playing(fpsClock)
+            elif gameMode is CREDITS:
+                gameMode = self.showCredits(fpsClock)
 
-            if gameMode is CREDITS: # Temp until handle credits
-                gameMode = MENU
+    def showLevelsMenu(self, fpsClock):
+        font = pygame.font.Font(None,40)
+        levelTextX = WIDTH / 2 - 150
+        levelTextY = HEIGHT / 2 - 20
+        
+        while 1:
+            for event in pygame.event.get():
+                if event.type == KEYDOWN:
+                    if event.key == K_DOWN and self.currLevel < self.maxLevel:
+                        self.currLevel += 1
+                    elif event.key == K_UP and self.currLevel > 1:
+                        self.currLevel -= 1
+                    elif event.key == K_ESCAPE:
+                        return MENU
+                    elif event.key == K_RETURN:
+                        return PLAY
+
+                if event.type == pygame.locals.QUIT:
+                    self.quitGame()
+
+            levelText = font.render("Level " + str(self.currLevel), 1, RED)
+
+            timeText = str(self.bestTimes[self.currLevel-1])
+            if timeText == str(MAXTIME):
+                timeText = "--"
+            bestTimeText = font.render("Best time: " + timeText + " seconds", 1, GREEN)
+
+            self.displaySurf.fill(BLACK)
+            self.displaySurf.blit(levelText, (levelTextX, levelTextY))
+            self.displaySurf.blit(bestTimeText, (levelTextX+150, levelTextY))
+            pygame.display.update()
+            fpsClock.tick(FPS)
+
+
+    def showCredits(self, fpsClock):
+        font = pygame.font.Font(None,40)
+        levelTextX = WIDTH / 2 - 200
+        levelTextY = HEIGHT / 2 - 20
+        
+        while 1:
+            for event in pygame.event.get():
+                if event.type == KEYDOWN:
+                    if event.key == K_ESCAPE:
+                        return MENU
+                    elif event.key == K_RETURN:
+                        return MENU
+
+                if event.type == pygame.locals.QUIT:
+                    self.quitGame()
+
+            text = font.render("Game made by Olle Olsson", 1, BLUE)
+            self.displaySurf.fill(BLACK)
+            self.displaySurf.blit(text, (levelTextX, levelTextY))
+            pygame.display.update()
+            fpsClock.tick(FPS)
 
     def showMenu(self, fpsClock):
         MAXALPHA        = 260
         MINALPHA        = 90
-        activeChoice    = PLAY
+        activeChoice    = LEVEL
         playAlpha       = MAXALPHA
         creditsAlpha    = MINALPHA
         exitAlpha       = MINALPHA
-        hi              = TILESIZE * 5
-        wid             = TILESIZE * 20
-        playPos         = (WIDTH / 2 - wid / 2, HEIGHT / 5)
-        creditsPos      = (WIDTH / 2 - wid / 2, HEIGHT / 5 + hi*2)
-        exitPos         = (WIDTH / 2 - wid / 2, HEIGHT / 5 + hi*4)
-        playSurf        = pygame.Surface((wid, hi)).convert_alpha()
-        creditsSurf     = pygame.Surface((wid, hi)).convert_alpha()
-        exitSurf        = pygame.Surface((wid, hi)).convert_alpha()
-        surf            = pygame.Surface((TILESIZE, TILESIZE))
         
         while 1:
-            if activeChoice is PLAY:
+            if activeChoice is LEVEL:
                 if playAlpha < MAXALPHA:
                     playAlpha += 10
             elif playAlpha > MINALPHA:
@@ -289,52 +353,59 @@ class Game:
             elif exitAlpha > MINALPHA:
                     exitAlpha -= 10
 
-            # self.handleMenuInput()
             for event in pygame.event.get():
                 if event.type == KEYDOWN:
                     if event.key == K_DOWN and activeChoice < QUIT:
                         activeChoice += 1
-                    elif event.key == K_UP and activeChoice > PLAY:
+                    elif event.key == K_UP and activeChoice > LEVEL:
                         activeChoice -= 1
                     elif event.key == K_ESCAPE:
                         return QUIT
                     elif event.key == K_RETURN:
                         return activeChoice
 
-                if event.type == KEYUP:
-                    pass
-            
                 if event.type == pygame.locals.QUIT:
                     self.quitGame()
 
-            playSurf.fill(BLACK)
-            surf.set_alpha(playAlpha)
-            surf.fill(BLUE)
-            for x in range(20):
-                for y in range(5):
-                    playSurf.blit(surf, (x*TILESIZE, y*TILESIZE))
-            
-            creditsSurf.fill(BLACK)
-            surf.set_alpha(creditsAlpha)
-            surf.fill(GREEN)
-            for x in range(20):
-                for y in range(5):
-                    creditsSurf.blit(surf, (x*TILESIZE, y*TILESIZE))
-
-            exitSurf.fill(BLACK)
-            surf.set_alpha(exitAlpha)
-            surf.fill(RED)
-            for x in range(20):
-                for y in range(5):
-                    exitSurf.blit(surf, (x*TILESIZE, y*TILESIZE))
-
-            self.displaySurf.blit(playSurf, playPos)
-            self.displaySurf.blit(creditsSurf, creditsPos)
-            self.displaySurf.blit(exitSurf, exitPos)
-
-            pygame.display.update()
+            self.renderMainMenu(playAlpha, creditsAlpha, exitAlpha)
             fpsClock.tick(FPS)
-            #print fpsClock.get_fps()
+
+    def renderMainMenu(self, playAlpha, creditsAlpha, exitAlpha):
+        hi              = TILESIZE * 5
+        wid             = TILESIZE * 20
+        playPos         = (WIDTH / 2 - wid / 2, HEIGHT / 5)
+        creditsPos      = (WIDTH / 2 - wid / 2, HEIGHT / 5 + hi*2)
+        exitPos         = (WIDTH / 2 - wid / 2, HEIGHT / 5 + hi*4)
+        playSurf        = pygame.Surface((wid, hi)).convert_alpha()
+        creditsSurf     = pygame.Surface((wid, hi)).convert_alpha()
+        exitSurf        = pygame.Surface((wid, hi)).convert_alpha()
+        surf            = pygame.Surface((TILESIZE, TILESIZE))
+
+        playSurf.fill(BLACK)
+        surf.set_alpha(playAlpha)
+        surf.fill(BLUE)
+        for x in range(20):
+            for y in range(5):
+                playSurf.blit(surf, (x*TILESIZE, y*TILESIZE))
+        
+        creditsSurf.fill(BLACK)
+        surf.set_alpha(creditsAlpha)
+        surf.fill(GREEN)
+        for x in range(20):
+            for y in range(5):
+                creditsSurf.blit(surf, (x*TILESIZE, y*TILESIZE))
+
+        exitSurf.fill(BLACK)
+        surf.set_alpha(exitAlpha)
+        surf.fill(RED)
+        for x in range(20):
+            for y in range(5):
+                exitSurf.blit(surf, (x*TILESIZE, y*TILESIZE))
+
+        self.displaySurf.blit(playSurf, playPos)
+        self.displaySurf.blit(creditsSurf, creditsPos)
+        self.displaySurf.blit(exitSurf, exitPos)
+        pygame.display.update()
 
     def playing(self, fpsClock):
         fovCounter = 0        
@@ -371,8 +442,8 @@ class Game:
             self.checkIfFoundCrystal()
 
             if self.checkLevelCompleted():
+                self.checkIfRecordTime(int(time.time() - startTime))
                 if self.currLevel < self.maxLevel:
-                    self.levelTime = time.time() - startTime
                     self.currLevel += 1
                     self.loadLevel(self.currLevel)
                 else:
@@ -380,6 +451,12 @@ class Game:
 
             self.render()
             fpsClock.tick(FPS)
+            #print fpsClock.get_fps()
+
+    def checkIfRecordTime(self, time):
+        time += self.deathCount*DEATH_PENALTY
+        if time < self.bestTimes[self.currLevel-1]:
+            self.bestTimes[self.currLevel-1] = time
 
     def respawn(self):
         self.player.x = self.spawnPos[0] * TILESIZE
@@ -629,15 +706,15 @@ class Game:
                 def markColored(x, y):
                     if self.tileLit(x, y) and \
                         self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
-                        / TILESIZESQ <= GUARD_RANGE**2:
+                        / TILESIZESQ <= guard.range**2:
                             self.lightMap[x][y] = guard
 
-                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, GUARD_RANGE, \
+                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, guard.range, \
                     markColored, tileBlocked)
 
     def guardFovInRange(self, guard):
         return self.getDist(guard.x, guard.y) <= \
-            ((PLAYER_RANGE + GUARD_RANGE) * TILESIZE)**2
+            ((PLAYER_RANGE + guard.range) * TILESIZE)**2
 
     def quitGame(self):
         pygame.quit()
