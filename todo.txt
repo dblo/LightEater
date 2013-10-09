@@ -1,12 +1,11 @@
 SHORT:
 add coord in player/agent
 lightbar, color-alpha logic
-add level 1,2
 
 MID:
-import map
 music
 level choice screen
+take time
 on win screen
 player visual
 
@@ -22,3 +21,11 @@ agents stop/change pattern/speed?
 at start of map is shown hint/map reveal momentarily7
 
 check on entered new tile?
+
+
+
+
+MAP ideas:
+fast guard
+guard with wider range
+guard with range 1 and very fast

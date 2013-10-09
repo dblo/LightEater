@@ -41,44 +41,24 @@ class Game:
         self.elemWid        = 0
 
     def loadLevel(self, levelNum):
-        levelFile           = open('levels.txt')
-        level               = []
-        line                = levelFile.readline()
-        levelString         = "level " + str(levelNum) + "\n"
+        level = self.getLevel(levelNum)
 
-        while line != levelString:
-            line = levelFile.readline()
-            assert line is not "EOF\n", "Error reading level " + str(levelNum)
-
-        line = levelFile.readline()
-        while line != "\n":
-            level.append(line.strip())
-            line = levelFile.readline()
-
+        # +2 for surrounding walls
         self.numCols    = int(level[0]) + 2
         self.numRows    = int(level[1]) + 2
+        self.spawnPos   = (int(level[2].split()[0]), int(level[2].split()[1]))
+        self.player     = Player(TILESIZE*self.spawnPos[0]+1, TILESIZE*self.spawnPos[1]+1)
         self.yMargin    = (HEIGHT - TILESIZE * self.numRows) / 2
         self.xMargin    = (WIDTH - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
-
-        for i in range(self.numCols):
-            self.level[i][0] = WALL
-            self.level[i][self.numRows-1] = WALL
-
-        for i in range(self.numRows):
-            self.level[0][i] = WALL
-            self.level[self.numCols-1][i] = WALL
-
-        self.spawnPos   = (int(level[2].split()[0]), int(level[2].split()[1]))
-        self.player     = Player(TILESIZE*self.spawnPos[0]+1, TILESIZE*self.spawnPos[1]+1)
+        self.updateLightBar = True
         
-        numOfCrystals = len(level[3].split()) / 3
+        crystalsList = level[3].split()
+        numOfCrystals = len(crystalsList) / 3
         for i in range(numOfCrystals):
-            self.crystals.append(Crystal(int(level[3].split()[i*3]), \
-                                    int(level[3].split()[i*3 + 1]), \
-                                    level[3].split()[i*3 + 2]))
+            self.crystals.append(Crystal(int(crystalsList[i*3]), \
+                int(crystalsList[i*3 + 1]), crystalsList[i*3 + 2]))
 
-        #Set the colors avaialble in the level
         for crystal in self.crystals:
             self.currAlphaDict[crystal.color] = 0
             self.incAlphaDict[crystal.color]  = 105
@@ -90,9 +70,55 @@ class Game:
         else:
             self.lightBarInfo   = ['B']*2 + ['Y']*2 + ['R']*2
 
-        self.updateLightBar = False
-
         agentCount = int(level[4])
+        self.addAgents(level, agentCount)
+        self.setMap(level, agentCount)
+        self.setSurfaces()
+
+    # Return level as list
+    def getLevel(self, levelNum):
+        levelFile  = open('levels.txt')
+        line       = levelFile.readline()
+        level      = []
+        levelString = "level " + str(levelNum) + "\n"
+
+        # Find block of levelNum
+        while line != levelString:
+            line = levelFile.readline()
+            assert line is not "EOF\n", "Error reading level " + str(levelNum)
+
+        # Store each line as element in the list level
+        line = levelFile.readline()
+        while line != "\n":
+            level.append(line.strip())
+            line = levelFile.readline()
+        levelFile.close()
+        return level
+
+    def setSurroundingWall(self):
+        for i in range(self.numCols):
+            self.level[i][0] = WALL
+            self.level[i][self.numRows-1] = WALL
+
+        for i in range(self.numRows):
+            self.level[0][i] = WALL
+            self.level[self.numCols-1][i] = WALL
+
+    def setMap(self, level, agentCount):
+        self.setSurroundingWall()
+        levelDescriptLine = 5 + agentCount
+
+        # set inner area of map
+        for row in range(1, self.numRows-1):
+            line = list(level[levelDescriptLine])
+            for col in range(1, self.numCols-1):
+                if line[col-1] == 'W':
+                    self.level[col][row] = WALL
+                else:
+                    self.level[col][row] = OPEN
+            levelDescriptLine += 1
+
+    def addAgents(self, level, agentCount):
         for i in range(agentCount):
             patrolList = []
             coordList = level[5+i].split()
@@ -102,19 +128,7 @@ class Game:
             
             self.agents.append(Agent(patrolList, coordList[-1]))
 
-        levelDescLine = 5 + agentCount
-        for row in range(self.numRows-2):
-            line = list(level[levelDescLine])
-            for col in range(self.numCols-2):
-                if line[col] == 'W':
-                    self.level[col+1][row+1] = WALL
-                else:
-                    self.level[col+1][row+1] = OPEN
-            levelDescLine += 1
-
-        self.onNewLevel()
-
-    def onNewLevel(self):
+    def setSurfaces(self):
         self.setVisibilityMap()
         self.lightMap       = [[None]*self.numRows for i in range(self.numCols)]
         self.colorsFound    = []
@@ -123,7 +137,7 @@ class Game:
         self.workSurf       = self.levelSurf.copy().convert_alpha()
         self.lightBarSurf   = pygame.Surface((self.numCols * TILESIZE, TILESIZE)).convert()
 
-        self.elemWid = (TILESIZE*self.numCols) / 6
+        self.elemWid = (TILESIZE*self.numCols) / LIGHTBAR_ELEMS
         if self.elemWid % 2 is 1:
             self.elemWid += 1
         self.lightBarElem = pygame.Surface((self.elemWid, TILESIZE)).convert()
@@ -304,8 +318,11 @@ class Game:
             self.checkIfFoundCrystal()
 
             if self.checkLevelCompleted():
-                print "level complete"
-                return MENU
+                if self.currLevel < self.maxLevel:
+                    self.currLevel += 1
+                    self.loadLevel(self.currLevel)
+                else:
+                    return MENU
 
             self.render()
             fpsClock.tick(FPS)
