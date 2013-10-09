@@ -31,6 +31,7 @@ class Game:
         self.maxLevel       = 2
         self.yMargin        = None
         self.xMargin        = None
+        self.numOfColors    = 0
         self.visibilityMap  = None
         self.lightMap       = None
         self.updateLightBar = False
@@ -59,9 +60,12 @@ class Game:
             self.crystals.append(Crystal(int(crystalsList[i*3]), \
                 int(crystalsList[i*3 + 1]), crystalsList[i*3 + 2]))
 
-        for crystal in self.crystals:
-            self.currAlphaDict[crystal.color] = 0
-            self.incAlphaDict[crystal.color]  = 105
+        if numOfCrystals > 2:
+            self.numOfColors = 6
+        elif numOfCrystals > 1:
+            self.numOfColors = 3
+        else:
+            self.numOfColors = 1
 
         if len(self.crystals) is 1:
             self.lightBarInfo   = ['B']*LIGHTBAR_ELEMS
@@ -71,9 +75,18 @@ class Game:
             self.lightBarInfo   = ['B']*2 + ['Y']*2 + ['R']*2
 
         agentCount = int(level[4])
-        self.addAgents(level, agentCount)
+        agentColorDict = self.addAgents(level, agentCount)
+        self.setColorAlphas(agentColorDict)
         self.setMap(level, agentCount)
         self.setSurfaces()
+
+    def setColorAlphas(self, agentColorDict):
+        alphaToFill = MAX_ALPHA - BASE_ALPHA
+        for color in agentColorDict:
+            if agentColorDict[color] is not 0:
+                self.currAlphaDict[color] = 0
+                self.incAlphaDict[color]  = \
+                    alphaToFill / agentColorDict[color] + 1
 
     # Return level as list
     def getLevel(self, levelNum):
@@ -118,7 +131,10 @@ class Game:
                     self.level[col][row] = OPEN
             levelDescriptLine += 1
 
+    # Return dictionary containing number of agents of each color
     def addAgents(self, level, agentCount):
+        colorCountDict = {'B':0, 'Y':0, 'R':0, 'G':0, 'P':0, 'O':0}
+
         for i in range(agentCount):
             patrolList = []
             coordList = level[5+i].split()
@@ -127,6 +143,8 @@ class Game:
                 patrolList.append((int(coordList[j*2]), int(coordList[j*2+1])))
             
             self.agents.append(Agent(patrolList, coordList[-1]))
+            colorCountDict[coordList[-1]] += 1
+        return colorCountDict
 
     def setSurfaces(self):
         self.setVisibilityMap()
@@ -183,8 +201,33 @@ class Game:
             self.absorbLight(agent)
         return True
 
+    def colorMaxed(self, color):
+        return self.currAlphaDict[color] >= MAX_ALPHA
+
     def absorbLight(self, agent):
-        self.currAlphaDict[agent.color] += self.incAlphaDict[agent.color]
+        absColor = agent.color
+        self.currAlphaDict[absColor] += self.incAlphaDict[absColor]
+
+        if absColor in ['B', 'Y', 'R']:
+            if self.numOfColors is 6:
+                if self.colorMaxed('Y') and self.colorMaxed('B'):
+                    self.lightBarInfo[1] = self.lightBarInfo[2] = 'G'
+                    self.currAlphaDict['G'] = BASE_ALPHA
+                    self.colorsFound.append('G')
+                if self.colorMaxed('R') and self.colorMaxed('B'):
+                    self.lightBarInfo[0] = self.lightBarInfo[5] = 'P'
+                    self.currAlphaDict['P'] = BASE_ALPHA
+                    self.colorsFound.append('P')
+                if self.colorMaxed('R') and self.colorMaxed('Y'):
+                    self.lightBarInfo[3] = self.lightBarInfo[4] = 'O'
+                    self.currAlphaDict['O'] = BASE_ALPHA
+                    self.colorsFound.append('O')
+            elif self.numOfColors is 3:
+                if self.colorMaxed('Y') and self.colorMaxed('B'):
+                    self.lightBarInfo[2] = self.lightBarInfo[3] = 'G'
+                    self.currAlphaDict['G'] = BASE_ALPHA
+                    self.colorsFound.append('G')
+
         self.agents.remove(agent)
         self.updateLightBar = True
 
@@ -340,7 +383,7 @@ class Game:
 
             if xCoord is crystal.x and yCoord is crystal.y:
                 self.colorsFound.append(crystal.color)
-                self.currAlphaDict[crystal.color] += CRYSTAL_ALPHA
+                self.currAlphaDict[crystal.color] += BASE_ALPHA
                 del self.crystals[i]
                 self.updateLightBar = True
                 break

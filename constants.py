@@ -5,7 +5,8 @@ TILESIZE        = 20
 TILESIZESQ      = TILESIZE**2
 WIDTH           = 1600
 HEIGHT          = 800
-CRYSTAL_ALPHA   = 105
+BASE_ALPHA      = 105
+MAX_ALPHA       = 255
 LIGHTBAR_ELEMS  = 6
 # Entities
 PLAYERSIZE      = 16

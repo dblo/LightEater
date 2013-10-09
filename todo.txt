@@ -1,6 +1,4 @@
 SHORT:
-add coord in player/agent
-lightbar, color-alpha logic
 
 MID:
 music
@@ -19,10 +17,7 @@ MAYBE:
 scrolling?
 agents stop/change pattern/speed?
 at start of map is shown hint/map reveal momentarily7
-
-check on entered new tile?
-
-
+check on entered new tile? add coord in player/agent. 
 
 
 MAP ideas:
