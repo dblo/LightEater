@@ -1,9 +1,9 @@
 from constants import TILESIZE
 
 class Agent:
-    def __init__(self, route, speed, color):
+    def __init__(self, route, color, speed=1):
         self.route = route
-        self.speed = speed
+        self.speed = int(speed)
         self.color = color
         self.currInstr = 1
 

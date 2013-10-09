@@ -1,11 +1,13 @@
 #! /usr/bin/env python
 
-import pygame, sys, fov, random
+import pygame, sys, fov
 from pygame.locals import KEYDOWN, KEYUP, K_DOWN, K_UP, K_LEFT, K_RIGHT, K_ESCAPE, K_RETURN
 from constants import *
 from player import Player
 from agent import Agent
 from crystal import Crystal
+
+DEBUG = False
 
 class Game:
     def __init__(self):
@@ -20,12 +22,12 @@ class Game:
         self.agents         = []
         self.colorsFound    = []
         self.crystals       = []
-        self.lightBarInfo   = []
         self.colorDict      = {'R' : RED, 'B' : BLUE, 'P' : PURPLE, 'Y' : YELLOW, \
                                 'G' : GREEN, 'O' : ORANGE}
-        self.currAlphaDict  = None
-        self.incAlphaDict   = None
-        self.currLevel      = 1
+        self.currAlphaDict  = {}
+        self.incAlphaDict   = {}
+        self.lightBarInfo   = {}
+        self.currLevel      = 2
         self.maxLevel       = 2
         self.yMargin        = None
         self.xMargin        = None
@@ -38,40 +40,26 @@ class Game:
         self.lightBarSurf   = None
         self.elemWid        = 0
 
-    def loadLevel(self):
-        self.numRows    = 10
-        self.numCols    = 20
-        self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
+    def loadLevel(self, levelNum):
+        levelFile           = open('levels.txt')
+        level               = []
+        line                = levelFile.readline()
+        levelString         = "level " + str(levelNum) + "\n"
 
-        for i in range(100):
-            x = random.randint(1, self.numCols-1)
-            y = random.randint(1, self.numRows-1)
-            self.level[x][y] = WALL
+        while line != levelString:
+            line = levelFile.readline()
+            assert line is not "EOF\n", "Error reading level " + str(levelNum)
 
-        for i in range(self.numCols):
-            self.level[i][0] = WALL
-            self.level[i][self.numRows-1] = WALL
+        line = levelFile.readline()
+        while line != "\n":
+            level.append(line.strip())
+            line = levelFile.readline()
 
-        for i in range(self.numRows):
-            self.level[0][i] = WALL
-            self.level[self.numCols-1][i] = WALL
-
-        self.spawnPos   = (1, 1)
-        self.player     = Player(TILESIZE*self.spawnPos[0]+1, TILESIZE*self.spawnPos[1]+1)
-        self.agents.append(Agent(((-1,1), (self.numCols-1,18), (17,18), (17,1)), 1, 'B'))
-        self.agents.append(Agent(((17,18), (17,1), (self.numCols-1,1), (self.numCols-1,18)), 1, 'B'))
-        self.crystals.append((3,1,'B'))
-
-    def loadLevel1(self):
-        self.numRows    = 10
-        self.numCols    = 10
+        self.numCols    = int(level[0]) + 2
+        self.numRows    = int(level[1]) + 2
         self.yMargin    = (HEIGHT - TILESIZE * self.numRows) / 2
         self.xMargin    = (WIDTH - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
-        self.currAlphaDict  = {'B' : 0}
-        self.incAlphaDict   = {'B' : 100}
-        self.lightBarInfo = ['B']*LIGHTBAR_ELEMS
-        self.updateLightBar = False
 
         for i in range(self.numCols):
             self.level[i][0] = WALL
@@ -81,17 +69,49 @@ class Game:
             self.level[0][i] = WALL
             self.level[self.numCols-1][i] = WALL
 
-        for i in range(6):
-            self.level[3][i+1] = WALL
+        self.spawnPos   = (int(level[2].split()[0]), int(level[2].split()[1]))
+        self.player     = Player(TILESIZE*self.spawnPos[0]+1, TILESIZE*self.spawnPos[1]+1)
+        
+        numOfCrystals = len(level[3].split()) / 3
+        for i in range(numOfCrystals):
+            self.crystals.append(Crystal(int(level[3].split()[i*3]), \
+                                    int(level[3].split()[i*3 + 1]), \
+                                    level[3].split()[i*3 + 2]))
 
-        for i in range(4):
-            self.level[6][i+3] = WALL
+        #Set the colors avaialble in the level
+        for crystal in self.crystals:
+            self.currAlphaDict[crystal.color] = 0
+            self.incAlphaDict[crystal.color]  = 105
 
-        self.spawnPos   = (1, 1)
-        self.player     = Player(TILESIZE*self.spawnPos[0], TILESIZE*self.spawnPos[1])
-        self.agents.append(Agent(((2,7), (2,8), (7,8), (7,7)), 1, 'B'))
-        self.agents.append(Agent(((5,2), (5,7), (7,7), (7,2)), 1, 'B'))
-        self.crystals.append(Crystal(2,1,'B'))
+        if len(self.crystals) is 1:
+            self.lightBarInfo   = ['B']*LIGHTBAR_ELEMS
+        elif len(self.crystals) is 2:
+            self.lightBarInfo   = ['B']*3 + ['Y']*3
+        else:
+            self.lightBarInfo   = ['B']*2 + ['Y']*2 + ['R']*2
+
+        self.updateLightBar = False
+
+        agentCount = int(level[4])
+        for i in range(agentCount):
+            patrolList = []
+            coordList = level[5+i].split()
+
+            for j in range((len(coordList)-1)/2):
+                patrolList.append((int(coordList[j*2]), int(coordList[j*2+1])))
+            
+            self.agents.append(Agent(patrolList, coordList[-1]))
+
+        levelDescLine = 5 + agentCount
+        for row in range(self.numRows-2):
+            line = list(level[levelDescLine])
+            for col in range(self.numCols-2):
+                if line[col] == 'W':
+                    self.level[col+1][row+1] = WALL
+                else:
+                    self.level[col+1][row+1] = OPEN
+            levelDescLine += 1
+
         self.onNewLevel()
 
     def onNewLevel(self):
@@ -110,8 +130,12 @@ class Game:
         self.makeLevelSurf()
 
     def setVisibilityMap(self):
-        self.visibilityMap = [[[UNEXPLORED, UNLIT] for j in range(self.numRows)] \
-         for i in range(self.numCols)]
+        if DEBUG:
+            self.visibilityMap = [[[EXPLORED, LIT] for j in range(self.numRows)] \
+             for i in range(self.numCols)]
+        else:    
+            self.visibilityMap = [[[UNEXPLORED, UNLIT] for j in range(self.numRows)] \
+             for i in range(self.numCols)]
 
         for i in range(self.numCols):
             self.visibilityMap[i][0][0] = EXPLORED
@@ -248,7 +272,7 @@ class Game:
 
     def playing(self, fpsClock):
         fovCounter = 0        
-        self.loadLevel1()
+        self.loadLevel(self.currLevel)
 
         def tileBlockes(x, y): 
             return self.level[x][y] == WALL
@@ -274,7 +298,7 @@ class Game:
             else:
                 fovCounter -= 1
 
-            if self.checkInLight():
+            if not DEBUG and self.checkInLight():
                 fovCounter = 0
 
             self.checkIfFoundCrystal()
@@ -376,7 +400,7 @@ class Game:
                 tileRect = pygame.Rect(x, y, TILESIZE, TILESIZE)
              
                 if self.tileLit(col, row):
-                    if self.tileColored(col, row):
+                    if self.tileColored(col, row) and self.level[col][row] is OPEN:
                         agent = self.lightMap[col][row]
                         alpha =  abs(255 - (self.get2pDist(x, y, agent.x, agent.y) \
                             / TILESIZESQ)*12)
@@ -399,12 +423,13 @@ class Game:
 
         if(self.updateLightBar):
             self.lightBarSurf.fill(BLACK)
+            offset = 0
             for color in self.lightBarInfo:
                 self.lightBarElem.set_alpha(self.currAlphaDict[color])
                 self.lightBarElem.fill(self.colorDict[color])
-            for i in range(LIGHTBAR_ELEMS):
-                self.lightBarSurf.blit(self.lightBarElem, \
-                    (i*self.elemWid, 0))
+                self.lightBarSurf.blit(self.lightBarElem, (offset*self.elemWid, 0))
+                offset += 1
+
             self.displaySurf.blit(self.lightBarSurf, (self.xMargin, self.yMargin - TILESIZE))
             self.updateLightBar = False
 
@@ -510,7 +535,10 @@ class Game:
                 self.lightMap[col][row] = None
 
     def updateFOV(self, tileBlocked, markVisible):
+        if DEBUG:
+            print "coords: ", self.getPlayerCoordX(), self.getPlayerCoordY()
         self.resetFOV()
+
         xCoord = self.getPlayerCoordX()
         yCoord = self.getPlayerCoordY()
         

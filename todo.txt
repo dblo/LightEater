@@ -1,5 +1,4 @@
 SHORT:
-crystal as object
 add coord in player/agent
 lightbar, color-alpha logic
 add level 1,2
