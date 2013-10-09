@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import pygame, sys, fov
+import pygame, sys, fov, time
 from pygame.locals import KEYDOWN, KEYUP, K_DOWN, K_UP, K_LEFT, K_RIGHT, K_ESCAPE, K_RETURN
 from constants import *
 from player import Player
@@ -27,7 +27,7 @@ class Game:
         self.currAlphaDict  = {}
         self.incAlphaDict   = {}
         self.lightBarInfo   = {}
-        self.currLevel      = 3
+        self.currLevel      = 1
         self.maxLevel       = 3
         self.yMargin        = None
         self.xMargin        = None
@@ -40,6 +40,11 @@ class Game:
         self.workSurf       = None
         self.lightBarSurf   = None
         self.elemWid        = 0
+        self.levelTime      = 0
+
+        pygame.mixer.init()
+        pygame.mixer.music.load('music.mp3')
+        pygame.mixer.music.play(-1)
 
     def loadLevel(self, levelNum):
         level = self.getLevel(levelNum)
@@ -224,12 +229,12 @@ class Game:
                     self.lightBarInfo[3] = self.lightBarInfo[4] = 'O'
                     self.currAlphaDict['O'] = BASE_ALPHA
                     self.colorsFound.append('O')
-            elif self.numOfColors is 3:
-                if absColor in ['B', 'Y', 'R']:
-                    if self.colorMaxed('Y') and self.colorMaxed('B'):
-                        self.lightBarInfo[2] = self.lightBarInfo[3] = 'G'
-                        self.currAlphaDict['G'] = BASE_ALPHA
-                        self.colorsFound.append('G')
+        elif self.numOfColors is 3:
+            if absColor in ['B', 'Y']:
+                if self.colorMaxed('Y') and self.colorMaxed('B'):
+                    self.lightBarInfo[2] = self.lightBarInfo[3] = 'G'
+                    self.currAlphaDict['G'] = BASE_ALPHA
+                    self.colorsFound.append('G')
 
         self.agents.remove(agent)
         self.updateLightBar = True
@@ -329,6 +334,7 @@ class Game:
 
             pygame.display.update()
             fpsClock.tick(FPS)
+            #print fpsClock.get_fps()
 
     def playing(self, fpsClock):
         fovCounter = 0        
@@ -343,6 +349,7 @@ class Game:
                 < PLAYER_RANGE**2:
                 self.visibilityMap[x][y] = [EXPLORED, LIT]
 
+        startTime = time.time()
         while 1:
             quit = self.handleInput()
             if quit is True:
@@ -365,6 +372,7 @@ class Game:
 
             if self.checkLevelCompleted():
                 if self.currLevel < self.maxLevel:
+                    self.levelTime = time.time() - startTime
                     self.currLevel += 1
                     self.loadLevel(self.currLevel)
                 else:
