@@ -43,5 +43,5 @@ YELLOW  = (255, 255, 0)
 ORANGE  = (255, 102, 0)
 FOW     = (10,  170, 10, 125)
 NOCOLOR = (255, 255, 255, 0)
-
+BGCOLORS = [WHITE, (0,102,102)]
 assert PLAYERSIZE % 2 == 0, "Playersize not even"

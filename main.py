@@ -34,6 +34,7 @@ class Game:
         self.currAlphaDict  = {}
         self.incAlphaDict   = {}
         self.lightBarInfo   = {}
+        self.bgColor        = None
         self.updateLightBar = False
         self.levelSurf      = None
         self.workSurf       = None
@@ -64,6 +65,7 @@ class Game:
         self.xMargin    = (WIDTH - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
         self.updateLightBar = True
+        self.bgColor = BGCOLORS[1]
 
         self.agents         = []
         self.colorsFound    = []
@@ -207,7 +209,7 @@ class Game:
                 if self.level[col][row] == WALL:
                     pygame.draw.rect(self.levelSurf, GRAY, tileRect)
                 elif self.level[col][row] == OPEN:
-                    pygame.draw.rect(self.levelSurf, (0, 153, 153), tileRect)
+                    pygame.draw.rect(self.levelSurf, self.bgColor, tileRect)
 
     # Return true if player died or absorbed a light
     def checkInLight(self):
@@ -290,7 +292,7 @@ class Game:
                 if event.type == pygame.locals.QUIT:
                     self.quitGame()
 
-            levelText = font.render("Level " + str(self.currLevel), 1, RED)
+            levelText = font.render("Level " + str(self.currLevel), 1, ORANGE)
 
             timeText = str(self.bestTimes[self.currLevel-1])
             if timeText == str(MAXTIME):
@@ -302,7 +304,6 @@ class Game:
             self.displaySurf.blit(bestTimeText, (levelTextX+150, levelTextY))
             pygame.display.update()
             fpsClock.tick(FPS)
-
 
     def showCredits(self, fpsClock):
         font = pygame.font.Font(None,40)
@@ -320,7 +321,7 @@ class Game:
                 if event.type == pygame.locals.QUIT:
                     self.quitGame()
 
-            text = font.render("Game made by Olle Olsson", 1, BLUE)
+            text = font.render("Game made by Olle Olsson", 1, YELLOW)
             self.displaySurf.fill(BLACK)
             self.displaySurf.blit(text, (levelTextX, levelTextY))
             pygame.display.update()
@@ -372,35 +373,33 @@ class Game:
 
     def renderMainMenu(self, playAlpha, creditsAlpha, exitAlpha):
         hi              = TILESIZE * 5
-        wid             = TILESIZE * 20
-        playPos         = (WIDTH / 2 - wid / 2, HEIGHT / 5)
-        creditsPos      = (WIDTH / 2 - wid / 2, HEIGHT / 5 + hi*2)
-        exitPos         = (WIDTH / 2 - wid / 2, HEIGHT / 5 + hi*4)
+        wid             = TILESIZE * 19
+        playPos         = (WIDTH / 2 - wid , HEIGHT / 5)
+        creditsPos      = (WIDTH / 2 - wid/4, HEIGHT / 5 + hi*2)
+        exitPos         = (WIDTH / 2 + (wid*6)/7, HEIGHT / 5 + hi*4)
         playSurf        = pygame.Surface((wid, hi)).convert_alpha()
         creditsSurf     = pygame.Surface((wid, hi)).convert_alpha()
         exitSurf        = pygame.Surface((wid, hi)).convert_alpha()
-        surf            = pygame.Surface((TILESIZE, TILESIZE))
+        surf            = pygame.Surface((200, 100))
+        font            = pygame.font.Font(None,80)
 
-        playSurf.fill(BLACK)
+        text = font.render("Play", 1, BLUE)
+        surf.fill(BLACK)
         surf.set_alpha(playAlpha)
-        surf.fill(BLUE)
-        for x in range(20):
-            for y in range(5):
-                playSurf.blit(surf, (x*TILESIZE, y*TILESIZE))
+        surf.blit(text, (0, 0))
+        playSurf.blit(surf, (0,0))
         
-        creditsSurf.fill(BLACK)
+        text = font.render("Credits", 1, YELLOW)
+        surf.fill(BLACK)
         surf.set_alpha(creditsAlpha)
-        surf.fill(GREEN)
-        for x in range(20):
-            for y in range(5):
-                creditsSurf.blit(surf, (x*TILESIZE, y*TILESIZE))
+        surf.blit(text, (0, 0))
+        creditsSurf.blit(surf, (0,0))
 
-        exitSurf.fill(BLACK)
+        text = font.render("Exit", 1, RED)
+        surf.fill(BLACK)
         surf.set_alpha(exitAlpha)
-        surf.fill(RED)
-        for x in range(20):
-            for y in range(5):
-                exitSurf.blit(surf, (x*TILESIZE, y*TILESIZE))
+        surf.blit(text, (0, 0))
+        exitSurf.blit(surf, (0,0))
 
         self.displaySurf.blit(playSurf, playPos)
         self.displaySurf.blit(creditsSurf, creditsPos)
@@ -424,7 +423,7 @@ class Game:
         while 1:
             quit = self.handleInput()
             if quit is True:
-                return MENU
+                return LEVEL
 
             self.movePlayer(self.player)
             for guard in self.agents:

@@ -1,14 +1,15 @@
 SHORT:
+fix clamp bug
 round player
 
 MID:
 
 LONG:
-set color alpha by distance from agent
-fix clamp bug
+finer light grid
 on menu, show arrows=move, enter/esc=choose/back-up
 
 MAYBE:
+set color alpha by distance from agent
 splashscreen
 add silver/gold time to beat
 scrolling?
@@ -17,6 +18,7 @@ at start of map is shown hint/map reveal momentarily7
 check on entered new tile? add coord in player/agent. 
 player sprite
 graphics
+alert on new best time
 
 MAP ideas:
 fast guard
