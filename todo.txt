@@ -3,7 +3,6 @@ fix clamp bug
 round player
 
 MID:
-more than one guard tag per tile, mix color
 
 LONG:
 finer light grid

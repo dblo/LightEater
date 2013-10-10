@@ -24,7 +24,6 @@ class Game:
         self.yMargin        = 0
         self.xMargin        = 0
         self.numOfColors    = 0
-        self.elemWid        = 0
         self.deathCount     = 0
         self.agents         = []
         self.colorsFound    = []
@@ -47,6 +46,7 @@ class Game:
         self.maxLevel       = 4
         self.currLevel      = self.maxLevel
         self.bestTimes      = [MAXTIME]*self.maxLevel
+        self.lightbarElemWid    = 0
 
         self.initWindow()
 #        self.playMusic()
@@ -194,11 +194,12 @@ class Game:
         self.workSurf       = self.levelSurf.copy().convert_alpha()
         self.lightBarSurf   = pygame.Surface((self.numCols * TILESIZE, TILESIZE)).convert()
 
-        self.elemWid = (TILESIZE*self.numCols) / LIGHTBAR_ELEMS
-        if self.elemWid % 2 is 1:
-            self.elemWid += 1
-        self.lightBarElem = pygame.Surface((self.elemWid, TILESIZE)).convert()
+        self.lightbarElemWid = (TILESIZE*self.numCols) / LIGHTBAR_ELEMS
+        if self.lightbarElemWid % 2 is 1:
+            self.lightbarElemWid += 1
+        self.lightBarElem = pygame.Surface((self.lightbarElemWid, TILESIZE)).convert()
         self.makeLevelSurf()
+        self.displaySurf.fill(BLACK)
 
     def setVisibilityMap(self):
         if DEBUG:
@@ -532,30 +533,30 @@ class Game:
         rect = pygame.Rect(player.x, player.y, PLAYERSIZE-1, PLAYERSIZE-1)
 
         if player.movingLeft:
-            if self.isBlocked(rect.left - PLAYERSPEED, rect.top) or \
-                self.isBlocked(rect.left - PLAYERSPEED, rect.bottom):
+            if self.isWall(rect.left - PLAYERSPEED, rect.top) or \
+                self.isWall(rect.left - PLAYERSPEED, rect.bottom):
                 player.x -= rect.left % TILESIZE
             else:
                 player.x -= PLAYERSPEED
 
         if player.movingRight:
-            if self.isBlocked(rect.right + PLAYERSPEED, rect.top) or \
-                self.isBlocked(rect.right + PLAYERSPEED, rect.bottom):
+            if self.isWall(rect.right + PLAYERSPEED, rect.top) or \
+                self.isWall(rect.right + PLAYERSPEED, rect.bottom):
                 player.x += PLAYERSPEED - (rect.right + PLAYERSPEED) \
                 % TILESIZE -1
             else:
                 player.x += PLAYERSPEED
 
         if player.movingUp:
-            if self.isBlocked(rect.left, rect.top - PLAYERSPEED) or \
-                self.isBlocked(rect.right, rect.top - PLAYERSPEED):
+            if self.isWall(rect.left, rect.top - PLAYERSPEED) or \
+                self.isWall(rect.right, rect.top - PLAYERSPEED):
                 player.y -= rect.top % TILESIZE
             else:
                 player.y -= PLAYERSPEED
 
         if player.movingDown:
-            if self.isBlocked(rect.left, rect.bottom + PLAYERSPEED) or \
-                self.isBlocked(rect.right, rect.bottom + PLAYERSPEED):
+            if self.isWall(rect.left, rect.bottom + PLAYERSPEED) or \
+                self.isWall(rect.right, rect.bottom + PLAYERSPEED):
                 player.y += PLAYERSPEED - (rect.bottom + PLAYERSPEED) \
                 % TILESIZE -1
             else:
@@ -578,9 +579,9 @@ class Game:
 
     def render(self):
         fog = pygame.Surface((TILESIZE, TILESIZE))
-
         fog.fill(FOG_COLOR)
-        self.workSurf.fill(NOCOLOR)#, None, pygame.BLEND_RGBA_MULT)
+        self.workSurf.fill(NOCOLOR)
+
         self.renderGuards()
         self.renderPlayer()
 
@@ -605,7 +606,7 @@ class Game:
 
                     # Draw heavier fog the further a lit area is from player
                     if not DEBUG:
-                        alpha = (self.getDist(x, y) / TILESIZESQ)*18
+                        alpha = (self.getDist(x, y) / TILESIZESQ)*ALPHA_FACTOR
                         if alpha > FOG_ALPHA:
                             fog.set_alpha(FOG_ALPHA)
                         else:
@@ -618,21 +619,25 @@ class Game:
                     pygame.draw.rect(self.workSurf, FOG_COLOR, tileRect)
 
         if(self.updateLightBar):
-            self.lightBarSurf.fill(BLACK)
-            offset = 0
-            for color in self.lightBarInfo:
-                self.lightBarElem.set_alpha(self.currAlphaDict[color])
-                self.lightBarElem.fill(self.colorDict[color])
-                self.lightBarSurf.blit(self.lightBarElem, (offset*self.elemWid, 0))
-                offset += 1
-
-            self.displaySurf.blit(self.lightBarSurf, (self.xMargin, self.yMargin - TILESIZE))
+            self.renderLightbar()
             self.updateLightBar = False
 
         self.renderCrystals()
         self.displaySurf.blit(self.levelSurf, (self.xMargin, self.yMargin))
         self.displaySurf.blit(self.workSurf, (self.xMargin, self.yMargin))
         pygame.display.update()
+
+
+    def renderLightbar(self):
+        self.lightBarSurf.fill(BLACK)
+        offset = 0
+        for color in self.lightBarInfo:
+            self.lightBarElem.set_alpha(self.currAlphaDict[color])
+            self.lightBarElem.fill(self.colorDict[color])
+            self.lightBarSurf.blit(self.lightBarElem, (offset*self.lightbarElemWid, 0))
+            offset += 1
+
+        self.displaySurf.blit(self.lightBarSurf, (self.xMargin, self.yMargin - TILESIZE))
 
     def renderCrystals(self):
         for crystal in self.crystals:
@@ -691,7 +696,7 @@ class Game:
         fog.set_alpha(alpha)
 
     # x, y coordinates without margins
-    def isBlocked(self, x, y):
+    def isWall(self, x, y):
         return self.level[x / TILESIZE][y / TILESIZE] == WALL
 
     # Return true if esc was pressed
@@ -735,14 +740,14 @@ class Game:
                     self.visibilityMap[col][row][1] = UNLIT
                     self.lightMap[col][row] = []
 
-    def updateFOV(self, tileBlocked, markVisible):
+    def updateFOV(self, tileBlockes, markVisible):
         self.resetFOV()
 
         xCoord = self.getPlayerCoordX()
         yCoord = self.getPlayerCoordY()
         
         fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, PLAYER_RANGE, \
-            markVisible, tileBlocked)
+            markVisible, tileBlockes)
 
         for guard in self.agents:
             if DEBUG or self.guardFovInRange(guard):
@@ -751,13 +756,13 @@ class Game:
 
                 # TODO
                 def markColored(x, y):
-                    if self.tileLit(x, y) and self.level[x][y] is not WALL and\
+                    if self.tileLit(x, y) and not tileBlockes(x, y) and\
                         self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
                         / TILESIZESQ <= guard.range**2:
                             self.lightMap[x][y].append(guard)
 
                 fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, guard.range, \
-                    markColored, tileBlocked)
+                    markColored, tileBlockes)
 
     def guardFovInRange(self, guard):
         return self.getDist(guard.x, guard.y) <= \
