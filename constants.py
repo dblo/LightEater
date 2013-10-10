@@ -1,23 +1,26 @@
 # General
 FPS             = 30
-PLAYERSPEED     = 2
 TILESIZE        = 20
 TILESIZESQ      = TILESIZE**2
-WIDTH           = 1600
-HEIGHT          = 800
 BASE_ALPHA      = 105
 MAX_ALPHA       = 255
+AGENT_MAX_ALPHA = 150
 LIGHTBAR_ELEMS  = 6
 MAXTIME         = 10000
 DEATH_PENALTY   = 3
+FOG_ALPHA       = 150
+FOV_UPDATE_RATE = FPS / 8
 # Entities
+PLAYERSPEED     = 2
 PLAYERSIZE      = 16
 HALFPLAYERSIZE  = PLAYERSIZE / 2
 GUARDSIZE       = TILESIZE
-PLAYER_RANGE    = 5
+HALF_GUARD_SIZE = GUARDSIZE / 2
+PLAYER_RANGE    = 4
 # Level
 WALL            = 0
 OPEN            = 1
+HOLE            = 2
 #lightMap
 UNEXPLORED      = False
 EXPLORED        = True
@@ -29,8 +32,6 @@ PLAY            = 1
 LEVEL           = 2
 CREDITS         = 3
 QUIT            = 4
-FOG_ALPHA       = 150
-FOV_UPDATE_RATE = FPS / 4
 # Colors
 BLACK   = (0,   0,   0)
 WHITE   = (255, 255, 255)

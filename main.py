@@ -7,12 +7,14 @@ from player import Player
 from agent import Agent
 from crystal import Crystal
 
-DEBUG = False
+DEBUG  = False
+if DEBUG:
+    PLAYERSPEED *= 3
 
 class Game:
     def __init__(self):
         pygame.init()
-        pygame.display.set_caption("Color hunter")
+        pygame.display.set_caption("game")
 
         self.numRows        = 0
         self.numCols        = 0
@@ -39,13 +41,25 @@ class Game:
         self.levelSurf      = None
         self.workSurf       = None
         self.lightBarSurf   = None
-        self.displaySurf    = pygame.display.set_mode((WIDTH, HEIGHT))
-
-        self.currLevel      = 3
-        self.maxLevel       = 3
+        self.displaySurf    = None
+        self.width          = 0
+        self.height         = 0
+        self.maxLevel       = 4
+        self.currLevel      = self.maxLevel
         self.bestTimes      = [MAXTIME]*self.maxLevel
 
-        self.playMusic()
+        self.initWindow()
+#        self.playMusic()
+
+    def initWindow(self):
+        self.displaySurf    = pygame.display.set_mode((0,0))
+        self.width          = self.displaySurf.get_width()
+        self.height         = self.displaySurf.get_height()
+
+        # Workaround for linux >1 monitors
+        if self.width > self.height * 2:
+            self.width /= 2
+        self.displaySurf = pygame.display.set_mode((self.width, self.height))
 
     def playMusic(self):
         pygame.mixer.init()
@@ -61,8 +75,8 @@ class Game:
         self.numRows    = int(levelDims[1]) + 2
         self.spawnPos   = (int(level[1].split()[0]), int(level[1].split()[1]))
         self.player     = Player(TILESIZE*self.spawnPos[0]+1, TILESIZE*self.spawnPos[1]+1)
-        self.yMargin    = (HEIGHT - TILESIZE * self.numRows) / 2
-        self.xMargin    = (WIDTH - TILESIZE  * self.numCols) / 2 
+        self.yMargin    = (self.height - TILESIZE * self.numRows) / 2
+        self.xMargin    = (self.width - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
         self.updateLightBar = True
         self.bgColor = BGCOLORS[1]
@@ -103,12 +117,12 @@ class Game:
         self.setVisibilityMap()
 
     def setColorAlphas(self, agentColorDict):
-        alphaToFill = MAX_ALPHA - BASE_ALPHA
+        alphaToFill = AGENT_MAX_ALPHA - BASE_ALPHA
         for color in agentColorDict:
+            self.currAlphaDict[color] = 0
             if agentColorDict[color] is not 0:
-                self.currAlphaDict[color] = 0
                 self.incAlphaDict[color]  = \
-                    alphaToFill / agentColorDict[color] + 1
+                    (alphaToFill / agentColorDict[color]) + 1
 
     # Return level as list
     def getLevel(self, levelNum):
@@ -120,7 +134,7 @@ class Game:
         # Find block of levelNum
         while line != levelString:
             line = levelFile.readline()
-            assert line is not "EOF\n", "Error reading level " + str(levelNum)
+            assert line != "EOF\n", "Error reading level " + str(levelNum)
 
         # Store each line as element in the list level
         line = levelFile.readline()
@@ -149,8 +163,11 @@ class Game:
             for col in range(1, self.numCols-1):
                 if line[col-1] == 'W':
                     self.level[col][row] = WALL
-                else:
+                elif line[col-1] == '-':
                     self.level[col][row] = OPEN
+                else:
+                    self.level[col][row] = HOLE
+
             levelDescriptLine += 1
 
     # Return dictionary containing number of agents of each color
@@ -210,6 +227,8 @@ class Game:
                     pygame.draw.rect(self.levelSurf, GRAY, tileRect)
                 elif self.level[col][row] == OPEN:
                     pygame.draw.rect(self.levelSurf, self.bgColor, tileRect)
+                else:
+                    pygame.draw.rect(self.levelSurf, BLACK, tileRect)
 
     # Return true if player died or absorbed a light
     def checkInLight(self):
@@ -224,8 +243,9 @@ class Game:
             self.absorbLight(agent)
         return True
 
+    # Return true if all agents of given color has been absorbed
     def colorMaxed(self, color):
-        return self.currAlphaDict[color] >= MAX_ALPHA
+        return self.currAlphaDict[color] >= AGENT_MAX_ALPHA
 
     def absorbLight(self, agent):
         absColor = agent.color
@@ -274,8 +294,8 @@ class Game:
 
     def showLevelsMenu(self, fpsClock):
         font = pygame.font.Font(None,40)
-        levelTextX = WIDTH / 2 - 150
-        levelTextY = HEIGHT / 2 - 20
+        levelTextX = self.width / 2 - 150
+        levelTextY = self.height / 2 - 20
         
         while 1:
             for event in pygame.event.get():
@@ -307,8 +327,8 @@ class Game:
 
     def showCredits(self, fpsClock):
         font = pygame.font.Font(None,40)
-        levelTextX = WIDTH / 2 - 200
-        levelTextY = HEIGHT / 2 - 20
+        levelTextX = self.width / 2 - 200
+        levelTextY = self.height / 2 - 20
         
         while 1:
             for event in pygame.event.get():
@@ -329,7 +349,7 @@ class Game:
 
     def showMenu(self, fpsClock):
         MAXALPHA        = 260
-        MINALPHA        = 90
+        MINALPHA        = 40
         activeChoice    = LEVEL
         playAlpha       = MAXALPHA
         creditsAlpha    = MINALPHA
@@ -374,14 +394,15 @@ class Game:
     def renderMainMenu(self, playAlpha, creditsAlpha, exitAlpha):
         hi              = TILESIZE * 5
         wid             = TILESIZE * 19
-        playPos         = (WIDTH / 2 - wid , HEIGHT / 5)
-        creditsPos      = (WIDTH / 2 - wid/4, HEIGHT / 5 + hi*2)
-        exitPos         = (WIDTH / 2 + (wid*6)/7, HEIGHT / 5 + hi*4)
+        playPos         = (self.width / 2 - wid , self.height / 5)
+        creditsPos      = (self.width / 2 - wid/4, self.height / 5 + hi*2)
+        exitPos         = (self.width / 2 + (wid*6)/7, self.height / 5 + hi*4)
         playSurf        = pygame.Surface((wid, hi)).convert_alpha()
         creditsSurf     = pygame.Surface((wid, hi)).convert_alpha()
         exitSurf        = pygame.Surface((wid, hi)).convert_alpha()
         surf            = pygame.Surface((200, 100))
         font            = pygame.font.Font(None,80)
+        infoFont        = pygame.font.Font(None,40)
 
         text = font.render("Play", 1, BLUE)
         surf.fill(BLACK)
@@ -401,6 +422,10 @@ class Game:
         surf.blit(text, (0, 0))
         exitSurf.blit(surf, (0,0))
 
+        infoText = infoFont.render("Move with arrow keys, select with enter, back up with esc", \
+             1, PURPLE)
+        self.displaySurf.blit(infoText, (self.width / 2 - infoText.get_width() / 2, 
+            self.height - infoText.get_height()))
         self.displaySurf.blit(playSurf, playPos)
         self.displaySurf.blit(creditsSurf, creditsPos)
         self.displaySurf.blit(exitSurf, exitPos)
@@ -420,10 +445,20 @@ class Game:
                 self.visibilityMap[x][y] = [EXPLORED, LIT]
 
         startTime = time.time()
+        debugY = 0
+        debugX = 0
+
         while 1:
             quit = self.handleInput()
             if quit is True:
                 return LEVEL
+
+            if DEBUG:
+                if debugX != self.getPlayerCoordX() or \
+                   debugY != self.getPlayerCoordY():
+                   debugX = self.getPlayerCoordX() 
+                   debugY = self.getPlayerCoordY()
+                   print "Player pos:", debugX, debugY
 
             self.movePlayer(self.player)
             for guard in self.agents:
@@ -486,30 +521,30 @@ class Game:
         rect = pygame.Rect(player.x, player.y, PLAYERSIZE-1, PLAYERSIZE-1)
 
         if player.movingLeft:
-            if self.isWall(rect.left - PLAYERSPEED, rect.top) or \
-                self.isWall(rect.left - PLAYERSPEED, rect.bottom):
+            if self.isBlocked(rect.left - PLAYERSPEED, rect.top) or \
+                self.isBlocked(rect.left - PLAYERSPEED, rect.bottom):
                 player.x -= rect.left % TILESIZE
             else:
                 player.x -= PLAYERSPEED
 
         if player.movingRight:
-            if self.isWall(rect.right + PLAYERSPEED, rect.top) or \
-                self.isWall(rect.right + PLAYERSPEED, rect.bottom):
+            if self.isBlocked(rect.right + PLAYERSPEED, rect.top) or \
+                self.isBlocked(rect.right + PLAYERSPEED, rect.bottom):
                 player.x += PLAYERSPEED - (rect.right + PLAYERSPEED) \
                 % TILESIZE -1
             else:
                 player.x += PLAYERSPEED
 
         if player.movingUp:
-            if self.isWall(rect.left, rect.top - PLAYERSPEED) or \
-                self.isWall(rect.right, rect.top - PLAYERSPEED):
+            if self.isBlocked(rect.left, rect.top - PLAYERSPEED) or \
+                self.isBlocked(rect.right, rect.top - PLAYERSPEED):
                 player.y -= rect.top % TILESIZE
             else:
                 player.y -= PLAYERSPEED
 
         if player.movingDown:
-            if self.isWall(rect.left, rect.bottom + PLAYERSPEED) or \
-                self.isWall(rect.right, rect.bottom + PLAYERSPEED):
+            if self.isBlocked(rect.left, rect.bottom + PLAYERSPEED) or \
+                self.isBlocked(rect.right, rect.bottom + PLAYERSPEED):
                 player.y += PLAYERSPEED - (rect.bottom + PLAYERSPEED) \
                 % TILESIZE -1
             else:
@@ -547,21 +582,24 @@ class Game:
                 tileRect = pygame.Rect(x, y, TILESIZE, TILESIZE)
              
                 if self.tileLit(col, row):
-                    if self.tileColored(col, row) and self.level[col][row] is OPEN:
+                    if self.tileColored(col, row):
                         agent = self.lightMap[col][row]
                         alpha =  abs(255 - (self.get2pDist(x, y, agent.x, agent.y) \
                             / TILESIZESQ)*12)
+
                         fog.fill(self.colorDict[agent.color])
                         fog.set_alpha(alpha)
                         self.workSurf.blit(fog, (x, y))
                         fog.fill(BLACK)
 
-                    alpha = (self.getDist(x, y) / TILESIZESQ)*6
-                    if alpha > FOG_ALPHA:
-                        fog.set_alpha(FOG_ALPHA)
-                    else:
-                        fog.set_alpha(alpha)
-                    self.workSurf.blit(fog, (x, y))
+                    # Draw heavier fog the further a lit area is from player
+                    if not DEBUG:
+                        alpha = (self.getDist(x, y) / TILESIZESQ)*6
+                        if alpha > FOG_ALPHA:
+                            fog.set_alpha(FOG_ALPHA)
+                        else:
+                            fog.set_alpha(alpha)
+                        self.workSurf.blit(fog, (x, y))
                 elif self.tileExplored(col, row):
                     fog.set_alpha(FOG_ALPHA)
                     self.workSurf.blit(fog, (x, y))
@@ -606,20 +644,20 @@ class Game:
 
     def renderGuards(self): pass
         # for guard in self.agents:
-        #     x = self.getCoordX(guard.x)
-        #     y = self.getCoordY(guard.y)
+        #     x = self.getAgentCoordX(guard.x)
+        #     y = self.getAgentCoordY(guard.y)
         #
             # if self.fovMap[x][y] is guard.color:
             #     pygame.draw.rect(self.workSurf, self.colorDict[guard.color], \
             #         pygame.Rect(guard.x, guard.y, GUARDSIZE, GUARDSIZE))
 
     # Return tilegrid x-coordinate
-    def getCoordX(self, pos):
-        return (pos + HALFPLAYERSIZE) / TILESIZE
+    def getAgentCoordX(self, pos):
+        return (pos + HALF_GUARD_SIZE) / TILESIZE
 
     # Return tilegrid y-coordinate
-    def getCoordY(self, pos):
-        return (pos + HALFPLAYERSIZE) / TILESIZE
+    def getAgentCoordY(self, pos):
+        return (pos + HALF_GUARD_SIZE) / TILESIZE
 
     # Return tilegrid x-coordinate
     def getPlayerCoordX(self):
@@ -642,8 +680,8 @@ class Game:
         fog.set_alpha(alpha)
 
     # x, y coordinates without margins
-    def isWall(self, x, y):
-        return self.level[x / TILESIZE][y / TILESIZE] == WALL
+    def isBlocked(self, x, y):
+        return not(self.level[x / TILESIZE][y / TILESIZE] == OPEN)
 
     # Return true if esc was pressed
     def handleInput(self):
@@ -687,8 +725,6 @@ class Game:
                     self.lightMap[col][row] = None
 
     def updateFOV(self, tileBlocked, markVisible):
-        if DEBUG:
-            print "coords: ", self.getPlayerCoordX(), self.getPlayerCoordY()
         self.resetFOV()
 
         xCoord = self.getPlayerCoordX()
@@ -698,12 +734,13 @@ class Game:
             markVisible, tileBlocked)
 
         for guard in self.agents:
-            if self.guardFovInRange(guard):
-                xCoord = self.getCoordX(guard.x)
-                yCoord = self.getCoordY(guard.y)
+            if DEBUG or self.guardFovInRange(guard):
+                xCoord = self.getAgentCoordX(guard.x)
+                yCoord = self.getAgentCoordY(guard.y)
 
+                # TODO
                 def markColored(x, y):
-                    if self.tileLit(x, y) and \
+                    if self.tileLit(x, y) and self.level[x][y] is not WALL and\
                         self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
                         / TILESIZESQ <= guard.range**2:
                             self.lightMap[x][y] = guard
@@ -716,6 +753,7 @@ class Game:
             ((PLAYER_RANGE + guard.range) * TILESIZE)**2
 
     def quitGame(self):
+        self.displaySurf = pygame.display.set_mode((self.width, self.height))
         pygame.quit()
         sys.exit()
 

@@ -3,12 +3,15 @@ fix clamp bug
 round player
 
 MID:
+more than one guard tag per tile, mix color
+die if step into hole
+change hole color
 
 LONG:
 finer light grid
-on menu, show arrows=move, enter/esc=choose/back-up
 
 MAYBE:
+2p?
 set color alpha by distance from agent
 splashscreen
 add silver/gold time to beat
@@ -20,7 +23,4 @@ player sprite
 graphics
 alert on new best time
 
-MAP ideas:
-fast guard
-guard with wider range
-guard with range 1 and very fast
+Map ideas:

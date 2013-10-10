@@ -1,5 +1,7 @@
 from constants import TILESIZE
 
+# Agent speed <= tilesize / (FPS / fovUpdateRate)
+
 class Agent:
     def __init__(self, route, color, speed=1, range=1):
         self.route = route
