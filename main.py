@@ -232,15 +232,15 @@ class Game:
 
     # Return true if player died or absorbed a light
     def checkInLight(self):
-        agent = self.lightMap[self.getPlayerCoordX()][self.getPlayerCoordY()]
-        if agent is None:
+        agentList = self.lightMap[self.getPlayerCoordX()][self.getPlayerCoordY()]
+        if not agentList:
             return False
 
-        if agent.color not in self.colorsFound:
-            self.respawn()
-            self.deathCount += 1
-        else:
-            self.absorbLight(agent)
+        for agent in agentList:
+            if agent.color not in self.colorsFound:
+                self.respawn()
+            else:
+                self.absorbLight(agent)
         return True
 
     # Return true if all agents of given color has been absorbed
@@ -461,6 +461,10 @@ class Game:
                    print "Player pos:", debugX, debugY
 
             self.movePlayer(self.player)
+            
+            if self.fellIntoHole():
+                self.respawn()
+
             for guard in self.agents:
                 guard.move()
 
@@ -495,6 +499,7 @@ class Game:
     def respawn(self):
         self.player.x = self.spawnPos[0] * TILESIZE
         self.player.y = self.spawnPos[1] * TILESIZE
+        self.deathCount += 1
 
     def checkIfFoundCrystal(self):
         i = 0
@@ -510,6 +515,12 @@ class Game:
                 self.updateLightBar = True
                 break
             i += 1   
+
+    # Return true if fell into hole
+    def fellIntoHole(self):
+        x = self.getPlayerCoordX()
+        y = self.getPlayerCoordY()
+        return self.level[x][y] == HOLE
 
     # Return true if level is completed
     def checkLevelCompleted(self):
@@ -561,14 +572,14 @@ class Game:
         return False
 
     def tileColored(self, x, y):
-        if self.lightMap[x][y] is None:
-            return False
-        return True
+        if self.lightMap[x][y]:
+            return True
+        return False
 
     def render(self):
         fog = pygame.Surface((TILESIZE, TILESIZE))
 
-        fog.fill(BLACK)
+        fog.fill(FOG_COLOR)
         self.workSurf.fill(NOCOLOR)#, None, pygame.BLEND_RGBA_MULT)
         self.renderGuards()
         self.renderPlayer()
@@ -583,18 +594,18 @@ class Game:
              
                 if self.tileLit(col, row):
                     if self.tileColored(col, row):
-                        agent = self.lightMap[col][row]
-                        alpha =  abs(255 - (self.get2pDist(x, y, agent.x, agent.y) \
-                            / TILESIZESQ)*12)
+                        for agent in self.lightMap[col][row]:
+                            alpha =  MAX_ALPHA / ((self.get2pDist(x, y, agent.x, agent.y) \
+                                / TILESIZESQ) + 1)
 
-                        fog.fill(self.colorDict[agent.color])
-                        fog.set_alpha(alpha)
-                        self.workSurf.blit(fog, (x, y))
-                        fog.fill(BLACK)
+                            fog.fill(self.colorDict[agent.color])
+                            fog.set_alpha(alpha)
+                            self.workSurf.blit(fog, (x, y))
+                            fog.fill(FOG_COLOR)
 
                     # Draw heavier fog the further a lit area is from player
                     if not DEBUG:
-                        alpha = (self.getDist(x, y) / TILESIZESQ)*6
+                        alpha = (self.getDist(x, y) / TILESIZESQ)*18
                         if alpha > FOG_ALPHA:
                             fog.set_alpha(FOG_ALPHA)
                         else:
@@ -604,7 +615,7 @@ class Game:
                     fog.set_alpha(FOG_ALPHA)
                     self.workSurf.blit(fog, (x, y))
                 else:
-                    pygame.draw.rect(self.workSurf, BLACK, tileRect)
+                    pygame.draw.rect(self.workSurf, FOG_COLOR, tileRect)
 
         if(self.updateLightBar):
             self.lightBarSurf.fill(BLACK)
@@ -681,7 +692,7 @@ class Game:
 
     # x, y coordinates without margins
     def isBlocked(self, x, y):
-        return not(self.level[x / TILESIZE][y / TILESIZE] == OPEN)
+        return self.level[x / TILESIZE][y / TILESIZE] == WALL
 
     # Return true if esc was pressed
     def handleInput(self):
@@ -717,12 +728,12 @@ class Game:
         if DEBUG:
             for col in range(self.numCols):
                 for row in range(self.numRows):
-                    self.lightMap[col][row] = None
+                    self.lightMap[col][row] = []
         else:
             for col in range(self.numCols):
                 for row in range(self.numRows):
                     self.visibilityMap[col][row][1] = UNLIT
-                    self.lightMap[col][row] = None
+                    self.lightMap[col][row] = []
 
     def updateFOV(self, tileBlocked, markVisible):
         self.resetFOV()
@@ -743,7 +754,7 @@ class Game:
                     if self.tileLit(x, y) and self.level[x][y] is not WALL and\
                         self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
                         / TILESIZESQ <= guard.range**2:
-                            self.lightMap[x][y] = guard
+                            self.lightMap[x][y].append(guard)
 
                 fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, guard.range, \
                     markColored, tileBlocked)

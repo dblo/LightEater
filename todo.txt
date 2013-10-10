@@ -4,8 +4,6 @@ round player
 
 MID:
 more than one guard tag per tile, mix color
-die if step into hole
-change hole color
 
 LONG:
 finer light grid
