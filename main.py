@@ -9,7 +9,7 @@ from crystal import Crystal
 
 DEBUG  = False
 if DEBUG:
-    PLAYERSPEED *= 3
+    PLAYERSPEED *= 2
 
 class Game:
     def __init__(self):
@@ -44,12 +44,12 @@ class Game:
         self.width          = 0
         self.height         = 0
         self.maxLevel       = 4
-        self.currLevel      = self.maxLevel
+        self.currLevel      = 1#self.maxLevel
         self.bestTimes      = [MAXTIME]*self.maxLevel
         self.lightbarElemWid    = 0
 
         self.initWindow()
-#        self.playMusic()
+        self.playMusic()
 
     def initWindow(self):
         self.displaySurf    = pygame.display.set_mode((0,0))
@@ -530,7 +530,7 @@ class Game:
         return False
 
     def movePlayer(self, player):
-        rect = pygame.Rect(player.x, player.y, PLAYERSIZE-1, PLAYERSIZE-1)
+        rect = pygame.Rect(player.x, player.y, PLAYERSIZE, PLAYERSIZE)
 
         if player.movingLeft:
             if self.isWall(rect.left - PLAYERSPEED, rect.top) or \
