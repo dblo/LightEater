@@ -45,11 +45,12 @@ class Game:
         self.height         = 0
         self.maxLevel       = 4
         self.currLevel      = 1#self.maxLevel
-        self.bestTimes      = [MAXTIME]*self.maxLevel
+        self.bestTimes      = [[MAXTIME]*3 for i in range(self.maxLevel)]
         self.lightbarElemWid    = 0
 
         self.initWindow()
-        self.playMusic()
+    #    self.playMusic()
+        self.readBestTimes()
 
     def initWindow(self):
         self.displaySurf    = pygame.display.set_mode((0,0))
@@ -312,17 +313,21 @@ class Game:
 
                 if event.type == pygame.locals.QUIT:
                     self.quitGame()
+            self.displaySurf.fill(BLACK)
 
             levelText = font.render("Level " + str(self.currLevel), 1, ORANGE)
+            bestTimeText = font.render("Best times: ", 1, GREEN)
+            self.displaySurf.blit(bestTimeText, (levelTextX+150, levelTextY-50))
 
-            timeText = str(self.bestTimes[self.currLevel-1])
-            if timeText == str(MAXTIME):
-                timeText = "--"
-            bestTimeText = font.render("Best time: " + timeText + " seconds", 1, GREEN)
+            for i in range(3):
+                timeText = str(self.bestTimes[self.currLevel-1][i])
+                if timeText == str(MAXTIME):
+                    timeText = "--"
 
-            self.displaySurf.fill(BLACK)
+                bestTimeText = font.render(timeText + " seconds", 1, GREEN)
+                self.displaySurf.blit(bestTimeText, (levelTextX+150, levelTextY+i*50))
+
             self.displaySurf.blit(levelText, (levelTextX, levelTextY))
-            self.displaySurf.blit(bestTimeText, (levelTextX+150, levelTextY))
             pygame.display.update()
             fpsClock.tick(FPS)
 
@@ -479,7 +484,8 @@ class Game:
             self.checkIfFoundCrystal()
 
             if self.checkLevelCompleted():
-                self.checkIfRecordTime(int(time.time() - startTime))
+                newTime = float((int((time.time() - startTime)*100)))/100.0
+                self.checkIfRecordTime(newTime)
                 if self.currLevel < self.maxLevel:
                     self.currLevel += 1
                     self.loadLevel(self.currLevel)
@@ -492,8 +498,16 @@ class Game:
 
     def checkIfRecordTime(self, time):
         time += self.deathCount*DEATH_PENALTY
-        if time < self.bestTimes[self.currLevel-1]:
-            self.bestTimes[self.currLevel-1] = time
+        i = 0
+        while i < 3:
+            if time < float(self.bestTimes[self.currLevel-1][i]):
+                j = 2
+                while j > i:
+                    self.bestTimes[self.currLevel-1][j] = self.bestTimes[self.currLevel-1][j-1]
+                    j -= 1
+                self.bestTimes[self.currLevel-1][i] = time
+                break
+            i += 1
 
     def respawn(self):
         self.player.x = self.spawnPos[0] * TILESIZE
@@ -768,9 +782,28 @@ class Game:
             ((PLAYER_RANGE + guard.range) * TILESIZE)**2
 
     def quitGame(self):
-        self.displaySurf = pygame.display.set_mode((self.width, self.height))
+        self.saveTimes()
         pygame.quit()
         sys.exit()
+
+    def saveTimes(self):
+        dataFile = open('data.txt', 'w')
+        output = ""
+        for i in self.bestTimes:
+            for j in i:
+                output += str(j) + " "
+            output += "\n"
+        dataFile.write(output)
+        dataFile.close()
+
+    def readBestTimes(self):
+        dataFile = open('data.txt')
+        i = 0
+        for line in dataFile:
+            line = line.split()
+            self.bestTimes[i] = line
+            i += 1
+        dataFile.close()
 
 def main():
     g = Game()
