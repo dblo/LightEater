@@ -1,9 +1,10 @@
 SHORT:
+store highscore data.txt
 
 MID:
+finer light grid
 
 LONG:
-finer light grid
 
 MAYBE:
 crystals instead of merge

@@ -437,6 +437,7 @@ class Game:
         self.loadLevel(self.currLevel)
 
         def tileBlockes(x, y): 
+            print "error", x, y
             return self.level[x][y] == WALL
 
         # Player has LOS on (x,y)
@@ -453,13 +454,12 @@ class Game:
             quit = self.handleInput()
             if quit is True:
                 return LEVEL
-
+            #print len(self.visibilityMap), len(self.visibilityMap[0])
             if DEBUG:
                 if debugX != self.getPlayerCoordX() or \
                    debugY != self.getPlayerCoordY():
                    debugX = self.getPlayerCoordX() 
                    debugY = self.getPlayerCoordY()
-                   print "Player pos:", debugX, debugY
 
             self.movePlayer(self.player)
             
@@ -530,7 +530,7 @@ class Game:
         return False
 
     def movePlayer(self, player):
-        rect = pygame.Rect(player.x, player.y, PLAYERSIZE, PLAYERSIZE)
+        rect = pygame.Rect(player.x, player.y, PLAYERSIZE-1, PLAYERSIZE-1)
 
         if player.movingLeft:
             if self.isWall(rect.left - PLAYERSPEED, rect.top) or \
@@ -561,8 +561,17 @@ class Game:
                 % TILESIZE -1
             else:
                 player.y += PLAYERSPEED
+        
+        # if self.getPlayerCoordY() >= self.numRows-1:
+        #     self.player.y -= TILESIZE
+        # if self.getPlayerCoordX() >= self.numCols-1:
+        #     self.player.x += TILESIZE  
+        # print self.getPlayerCoordX(), self.getPlayerCoordY()
+        # print "actual pos", self.player.x, self.player.y
 
     def tileLit(self, x, y):
+        # print "error", x, y
+        # print "mypos", self.player.x, self.player.y
         if self.visibilityMap[x][y][1] is LIT:
             return True
         return False
@@ -745,6 +754,7 @@ class Game:
 
         xCoord = self.getPlayerCoordX()
         yCoord = self.getPlayerCoordY()
+
         
         fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, PLAYER_RANGE, \
             markVisible, tileBlockes)
@@ -756,13 +766,16 @@ class Game:
 
                 # TODO
                 def markColored(x, y):
-                    if self.tileLit(x, y) and not tileBlockes(x, y) and\
-                        self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
-                        / TILESIZESQ <= guard.range**2:
-                            self.lightMap[x][y].append(guard)
+                    pass
+                    # if self.tileLit(x, y) and not tileBlockes(x, y) and\
+                    #     self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
+                    #     / TILESIZESQ <= guard.range**2:
+                    #         self.lightMap[x][y].append(guard)
+                print "MYPOS: ", xCoord, yCoord, self.numCols, self.numRows
 
                 fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, guard.range, \
                     markColored, tileBlockes)
+                print "done"
 
     def guardFovInRange(self, guard):
         return self.getDist(guard.x, guard.y) <= \
