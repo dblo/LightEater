@@ -255,36 +255,33 @@ class Game:
     def colorMaxed(self, color):
         return self.currAlphaDict[color] >= AGENT_MAX_ALPHA
 
+    # Remove light and update lightbar color alpha
     def absorbLight(self, agent):
         absColor = agent.color
         self.currAlphaDict[absColor] += self.incAlphaDict[absColor]
 
         if self.numOfColors is 6:
-            if absColor in ['B', 'Y']:
-                if self.colorMaxed('Y') and self.colorMaxed('B'):
-                    self.lightBarInfo.append('G')
-                    self.currAlphaDict['G'] = BASE_ALPHA
-                    self.colorsFound.append('G')
-            if absColor in ['B', 'R']:
-                if self.colorMaxed('R') and self.colorMaxed('B'):
-                    self.lightBarInfo.append('P')
-                    self.currAlphaDict['P'] = BASE_ALPHA
-                    self.colorsFound.append('P')
-            if absColor in ['R', 'Y']:
-                if self.colorMaxed('R') and self.colorMaxed('Y'):
-                    self.lightBarInfo.append('O')
-                    self.currAlphaDict['O'] = BASE_ALPHA
-                    self.colorsFound.append('O')
+            self.checkMaxedColors(absColor,1)
         elif self.numOfColors is 3:
-            if absColor in ['B', 'Y']:
-                if self.colorMaxed('Y') and self.colorMaxed('B'):
-                    self.lightBarInfo.append('G')
-                    self.currAlphaDict['G'] = BASE_ALPHA
-                    self.colorsFound.append('G')
-
+            self.checkMaxedColors(absColor, 2)
+        
         self.agents.remove(agent)
         self.updateLightBar = True
 
+    # Check if 2 colors were maxed and should merge into a new color
+    def checkMaxedColors(self, absColor, elemWid):
+        self.checkMaxedColorsHelper(absColor, ['B', 'Y'], 'G', elemWid)
+        self.checkMaxedColorsHelper(absColor, ['B', 'R'], 'P', elemWid)
+        self.checkMaxedColorsHelper(absColor, ['R', 'Y'], 'O', elemWid)
+
+    # compColors is a list of two colors that merge into newColor
+    def checkMaxedColorsHelper(self, absColor, compColors, newColor, elemWid):
+        if absColor in compColors:
+            if self.colorMaxed(compColors[0]) and self.colorMaxed(compColors[1]):
+                self.lightBarInfo += list(newColor)*elemWid
+                self.currAlphaDict[newColor] = BASE_ALPHA
+                self.colorsFound.append(newColor)
+                
     def run(self):
         fpsClock = pygame.time.Clock()
         gameMode = MENU
@@ -534,7 +531,14 @@ class Game:
 
             if xCoord is crystal.x and yCoord is crystal.y:
                 self.colorsFound.append(crystal.color)
-                self.lightBarInfo.append(crystal.color)
+
+                if self.numOfColors is 6:
+                    self.lightBarInfo.append(crystal.color)
+                elif self.numOfColors is 3:
+                    self.lightBarInfo += list(crystal.color)*2
+                else:
+                    self.lightBarInfo += list(crystal.color)*6
+
                 self.currAlphaDict[crystal.color] += BASE_ALPHA
                 del self.crystals[i]
                 self.updateLightBar = True
