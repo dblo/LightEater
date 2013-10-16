@@ -36,13 +36,13 @@ QUIT            = 4
 # Colors
 BLACK        = (0,   0,   0)
 WHITE        = (255, 255, 255)
-RED          = (255, 0,   0)
+RED          = (175, 0,   0)
 GRAY         = (100, 100, 100)
 GREEN        = (0,   255,   0)
 BLUE         = (0,   0,   255)
 PURPLE       = (128, 0,   128)
 YELLOW       = (255, 255, 0)
-ORANGE       = (255, 102, 0)
+ORANGE       = (255, 120, 0)
 NOCOLOR      = (255, 255, 255, 0)
 BGCOLORS     = [WHITE, (0,102,102)]
 FOG_COLOR    = (50,50,50)

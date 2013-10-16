@@ -1,13 +1,14 @@
 #! /usr/bin/env python
 
 import pygame, sys, fov, time
-from pygame.locals import KEYDOWN, KEYUP, K_DOWN, K_UP, K_LEFT, K_RIGHT, K_ESCAPE, K_RETURN
+from pygame.locals import KEYDOWN, KEYUP, K_DOWN, K_UP, K_LEFT, K_RIGHT, \
+    K_ESCAPE, K_RETURN
 from constants import *
 from player import Player
 from agent import Agent
 from crystal import Crystal
 
-DEBUG  = False
+DEBUG  = True
 if DEBUG:
     PLAYERSPEED *= 2
 
@@ -26,15 +27,14 @@ class Game:
         self.numOfColors    = 0
         self.deathCount     = 0
         self.agents         = []
-        self.colorsFound    = []
         self.crystals       = []
         self.visibilityMap  = []
         self.lightMap       = []
-        self.colorDict      = {'R' : RED, 'B' : BLUE, 'P' : PURPLE, 'Y' : YELLOW, \
-                                'G' : GREEN, 'O' : ORANGE}
+        self.colorDict      = {'R' : RED, 'B' : BLUE, 'P' : PURPLE,
+                                'Y' : YELLOW, 'G' : GREEN, 'O' : ORANGE}
         self.currAlphaDict  = {}
         self.incAlphaDict   = {}
-        self.lightBarInfo   = {}
+        self.colorsFound    = []
         self.bgColor        = None
         self.updateLightBar = False
         self.levelSurf      = None
@@ -54,8 +54,8 @@ class Game:
 
     def initWindow(self):
         self.displaySurf    = pygame.display.set_mode((0,0))
-        self.width          = self.displaySurf.get_width()
-        self.height         = self.displaySurf.get_height()
+        self.width          = 1600#self.displaySurf.get_width()
+        self.height         = 900#self.displaySurf.get_height() # TODO
 
         # Workaround for linux >1 monitors
         if self.width > self.height * 2:
@@ -68,26 +68,28 @@ class Game:
         pygame.mixer.music.play(-1)
 
     def loadLevel(self, levelNum):
-        level = self.getLevel(levelNum)
+        playerSpawnOffset = (TILESIZE - PLAYERSIZE) / 2
 
-        levelDims = level[0].split()
+        level           = self.getLevel(levelNum)
+        levelDims       = level[0].split()
+
         # +2 for surrounding walls
         self.numCols    = int(levelDims[0]) + 2
         self.numRows    = int(levelDims[1]) + 2
         self.spawnPos   = (int(level[1].split()[0]), int(level[1].split()[1]))
-        self.player     = Player(TILESIZE*self.spawnPos[0]+1, TILESIZE*self.spawnPos[1]+1)
+        self.player     = Player(TILESIZE*self.spawnPos[0] + playerSpawnOffset,
+                                TILESIZE*self.spawnPos[1] + playerSpawnOffset)
         self.yMargin    = (self.height - TILESIZE * self.numRows) / 2
         self.xMargin    = (self.width - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
+        self.bgColor    = BGCOLORS[1]
         self.updateLightBar = True
-        self.bgColor = BGCOLORS[1]
 
         self.agents         = []
-        self.colorsFound    = []
         self.crystals       = []
+        self.colorsFound    = []
         self.currAlphaDict  = {}
         self.incAlphaDict   = {}
-        self.lightBarInfo   = []
         self.deathCount     = 0
         
         crystalsList = level[2].split()
@@ -101,25 +103,15 @@ class Game:
 
         if numOfCrystals is 3:
             self.numOfColors = 6
-            # self.setUsedColors(agentColorDict, 1)
         elif numOfCrystals is 2:
             self.numOfColors = 3
-            # self.setUsedColors(agentColorDict, 2)
         else:
             self.numOfColors = 1
-            # self.setUsedColors(agentColorDict, 6)
 
         self.setColorAlphas(agentColorDict)
         self.setMap(level, agentCount)
         self.setSurfaces()
         self.setVisibilityMap()
-
-    # # Set what colors are used in the lightbar
-    # def setUsedColors(self, agentColorDict, fillElemCount):
-    #     for color in agentColorDict:
-    #         if agentColorDict[color] is not 0:
-    #             newElem = list(color)*fillElemCount
-    #             self.lightBarInfo += newElem
 
     # Calculate by how much the alpha in the lightbar should increase when
     # the player eats a light, for that color
@@ -195,26 +187,27 @@ class Game:
 
     def setSurfaces(self):
         self.lightMap       = [[None]*self.numRows for i in range(self.numCols)]
-        self.colorsFound    = []
         self.levelSurf      = pygame.Surface((self.numCols * TILESIZE, \
             self.numRows * TILESIZE))
         self.workSurf       = self.levelSurf.copy().convert_alpha()
-        self.lightBarSurf   = pygame.Surface((self.numCols * TILESIZE, TILESIZE)).convert()
+        self.lightBarSurf   = pygame.Surface((self.numCols * TILESIZE, 
+            TILESIZE)).convert()
 
         self.lightbarElemWid = (TILESIZE*self.numCols) / LIGHTBAR_ELEMS
         if self.lightbarElemWid % 2 is 1:
             self.lightbarElemWid += 1
-        self.lightBarElem = pygame.Surface((self.lightbarElemWid, TILESIZE)).convert()
+        self.lightBarElem = pygame.Surface((self.lightbarElemWid, 
+            TILESIZE)).convert()
         self.makeLevelSurf()
         self.displaySurf.fill(BLACK)
 
     def setVisibilityMap(self):
         if DEBUG:
-            self.visibilityMap = [[[EXPLORED, LIT] for j in range(self.numRows)] \
-             for i in range(self.numCols)]
+            self.visibilityMap = [[[EXPLORED, LIT] \
+            for j in range(self.numRows)] for i in range(self.numCols)]
         else:    
-            self.visibilityMap = [[[UNEXPLORED, UNLIT] for j in range(self.numRows)] \
-             for i in range(self.numCols)]
+            self.visibilityMap = [[[UNEXPLORED, UNLIT] \
+             for j in range(self.numRows)] for i in range(self.numCols)]
 
         for i in range(self.numCols):
             self.visibilityMap[i][0][0] = EXPLORED
@@ -277,10 +270,10 @@ class Game:
     # compColors is a list of two colors that merge into newColor
     def checkMaxedColorsHelper(self, absColor, compColors, newColor, elemWid):
         if absColor in compColors:
-            if self.colorMaxed(compColors[0]) and self.colorMaxed(compColors[1]):
-                self.lightBarInfo += list(newColor)*elemWid
+            if self.colorMaxed(compColors[0]) and \
+                self.colorMaxed(compColors[1]):
+                self.colorsFound += list(newColor)*elemWid
                 self.currAlphaDict[newColor] = BASE_ALPHA
-                self.colorsFound.append(newColor)
                 
     def run(self):
         fpsClock = pygame.time.Clock()
@@ -328,7 +321,8 @@ class Game:
                     timeText = "--"
 
                 bestTimeText = font.render(timeText + " seconds", 1, GREEN)
-                self.displaySurf.blit(bestTimeText, (levelTextX+150, levelTextY+i*50))
+                self.displaySurf.blit(bestTimeText, (levelTextX+150, \
+                                                        levelTextY+i*50))
 
             self.displaySurf.blit(levelText, (levelTextX, levelTextY))
             pygame.display.update()
@@ -431,10 +425,11 @@ class Game:
         surf.blit(text, (0, 0))
         exitSurf.blit(surf, (0,0))
 
-        infoText = infoFont.render("Move with arrow keys, select with enter, back up with esc", \
-             1, PURPLE)
-        self.displaySurf.blit(infoText, (self.width / 2 - infoText.get_width() / 2, 
-            self.height - infoText.get_height()))
+        infoText = infoFont.render("Move with arrow keys, select with enter, back up with esc", 
+            1, PURPLE)
+        infoTextX = self.width / 2 - infoText.get_width() / 2
+        infoTextY = self.height - infoText.get_height()
+        self.displaySurf.blit(infoText, (infoTextX, infoTextY))
         self.displaySurf.blit(playSurf, playPos)
         self.displaySurf.blit(creditsSurf, creditsPos)
         self.displaySurf.blit(exitSurf, exitPos)
@@ -472,17 +467,22 @@ class Game:
             if self.fellIntoHole():
                 self.respawn()
 
+            if not DEBUG and self.checkInLight():
+                fovCounter = 0
+
             for guard in self.agents:
                 guard.move()
+
+            # Check twice per frame to prevent the player and a light from 
+            # passing through each other due to both changing tile
+            if not DEBUG and self.checkInLight():
+                fovCounter = 0
 
             if fovCounter == 0:
                 self.updateFOV(tileBlockes, markVisible)
                 fovCounter = FOV_UPDATE_RATE
             else:
                 fovCounter -= 1
-
-            if not DEBUG and self.checkInLight():
-                fovCounter = 0
 
             self.checkIfFoundCrystal()
 
@@ -530,14 +530,12 @@ class Game:
             crystal = self.crystals[i]
 
             if xCoord is crystal.x and yCoord is crystal.y:
-                self.colorsFound.append(crystal.color)
-
                 if self.numOfColors is 6:
-                    self.lightBarInfo.append(crystal.color)
+                    self.colorsFound.append(crystal.color)
                 elif self.numOfColors is 3:
-                    self.lightBarInfo += list(crystal.color)*2
+                    self.colorsFound += list(crystal.color)*2
                 else:
-                    self.lightBarInfo += list(crystal.color)*6
+                    self.colorsFound += list(crystal.color)*6
 
                 self.currAlphaDict[crystal.color] += BASE_ALPHA
                 del self.crystals[i]
@@ -659,7 +657,7 @@ class Game:
     def renderLightbar(self):
         self.lightBarSurf.fill(BLACK)
         offset = 0
-        for color in self.lightBarInfo:
+        for color in self.colorsFound:
             self.lightBarElem.set_alpha(self.currAlphaDict[color])
             self.lightBarElem.fill(self.colorDict[color])
             self.lightBarSurf.blit(self.lightBarElem, (offset*self.lightbarElemWid, 0))
