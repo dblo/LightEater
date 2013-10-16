@@ -1,7 +1,6 @@
 SHORT:
 safespots
 round player
-6 part lightbar
 tutoring text like this is safespot
 inform time penalty
 
@@ -12,6 +11,7 @@ LONG:
 check on entered new tile? add coord in player/agent. 
 alert on new best time
 finer light grid
+shw best times h:m:s:..
 
 MAYBE:
 agents stop/change pattern/speed?

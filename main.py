@@ -87,7 +87,7 @@ class Game:
         self.crystals       = []
         self.currAlphaDict  = {}
         self.incAlphaDict   = {}
-        self.lightBarInfo   = {}
+        self.lightBarInfo   = []
         self.deathCount     = 0
         
         crystalsList = level[2].split()
@@ -96,27 +96,33 @@ class Game:
             self.crystals.append(Crystal(int(crystalsList[i*3]), \
                 int(crystalsList[i*3 + 1]), crystalsList[i*3 + 2]))
 
-        if numOfCrystals > 2:
-            self.numOfColors = 6
-        elif numOfCrystals > 1:
-            self.numOfColors = 3
-        else:
-            self.numOfColors = 1
-
-        if len(self.crystals) is 1:
-            self.lightBarInfo   = ['B']*LIGHTBAR_ELEMS
-        elif len(self.crystals) is 2:
-            self.lightBarInfo   = ['B']*3 + ['Y']*3
-        else:
-            self.lightBarInfo   = ['B']*2 + ['Y']*2 + ['R']*2
-
         agentCount = int(level[3])
         agentColorDict = self.addAgents(level, agentCount)
+
+        if numOfCrystals is 3:
+            self.numOfColors = 6
+            # self.setUsedColors(agentColorDict, 1)
+        elif numOfCrystals is 2:
+            self.numOfColors = 3
+            # self.setUsedColors(agentColorDict, 2)
+        else:
+            self.numOfColors = 1
+            # self.setUsedColors(agentColorDict, 6)
+
         self.setColorAlphas(agentColorDict)
         self.setMap(level, agentCount)
         self.setSurfaces()
         self.setVisibilityMap()
 
+    # # Set what colors are used in the lightbar
+    # def setUsedColors(self, agentColorDict, fillElemCount):
+    #     for color in agentColorDict:
+    #         if agentColorDict[color] is not 0:
+    #             newElem = list(color)*fillElemCount
+    #             self.lightBarInfo += newElem
+
+    # Calculate by how much the alpha in the lightbar should increase when
+    # the player eats a light, for that color
     def setColorAlphas(self, agentColorDict):
         alphaToFill = AGENT_MAX_ALPHA - BASE_ALPHA
         for color in agentColorDict:
@@ -173,7 +179,7 @@ class Game:
 
     # Return dictionary containing number of agents of each color
     def addAgents(self, level, agentCount):
-        colorCountDict = {'B':0, 'Y':0, 'R':0, 'G':0, 'P':0, 'O':0}
+        colorCountDict = {'B':0, 'R':0, 'Y':0, 'P':0, 'O':0, 'G':0}
 
         for i in range(agentCount):
             patrolList = []
@@ -256,23 +262,23 @@ class Game:
         if self.numOfColors is 6:
             if absColor in ['B', 'Y']:
                 if self.colorMaxed('Y') and self.colorMaxed('B'):
-                    self.lightBarInfo[1] = self.lightBarInfo[2] = 'G'
+                    self.lightBarInfo.append('G')
                     self.currAlphaDict['G'] = BASE_ALPHA
                     self.colorsFound.append('G')
             if absColor in ['B', 'R']:
                 if self.colorMaxed('R') and self.colorMaxed('B'):
-                    self.lightBarInfo[0] = self.lightBarInfo[5] = 'P'
+                    self.lightBarInfo.append('P')
                     self.currAlphaDict['P'] = BASE_ALPHA
                     self.colorsFound.append('P')
             if absColor in ['R', 'Y']:
                 if self.colorMaxed('R') and self.colorMaxed('Y'):
-                    self.lightBarInfo[3] = self.lightBarInfo[4] = 'O'
+                    self.lightBarInfo.append('O')
                     self.currAlphaDict['O'] = BASE_ALPHA
                     self.colorsFound.append('O')
         elif self.numOfColors is 3:
             if absColor in ['B', 'Y']:
                 if self.colorMaxed('Y') and self.colorMaxed('B'):
-                    self.lightBarInfo[2] = self.lightBarInfo[3] = 'G'
+                    self.lightBarInfo.append('G')
                     self.currAlphaDict['G'] = BASE_ALPHA
                     self.colorsFound.append('G')
 
@@ -528,6 +534,7 @@ class Game:
 
             if xCoord is crystal.x and yCoord is crystal.y:
                 self.colorsFound.append(crystal.color)
+                self.lightBarInfo.append(crystal.color)
                 self.currAlphaDict[crystal.color] += BASE_ALPHA
                 del self.crystals[i]
                 self.updateLightBar = True
