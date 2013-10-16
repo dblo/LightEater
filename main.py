@@ -496,15 +496,18 @@ class Game:
             fpsClock.tick(FPS)
             #print fpsClock.get_fps()
 
+    # If time is new top3 time, store it and move other times appropriately
     def checkIfRecordTime(self, time):
         time += self.deathCount*DEATH_PENALTY
         i = 0
         while i < 3:
             if time < float(self.bestTimes[self.currLevel-1][i]):
+                # new top3 time found, move others down in record list
                 j = 2
                 while j > i:
                     self.bestTimes[self.currLevel-1][j] = self.bestTimes[self.currLevel-1][j-1]
                     j -= 1
+
                 self.bestTimes[self.currLevel-1][i] = time
                 break
             i += 1
@@ -514,11 +517,13 @@ class Game:
         self.player.y = self.spawnPos[1] * TILESIZE
         self.deathCount += 1
 
+    # Check if a crystal was found, if so add it to found and remove from map
     def checkIfFoundCrystal(self):
         i = 0
+        xCoord = self.getPlayerCoordX()
+        yCoord = self.getPlayerCoordY()
+
         while i < len(self.crystals):
-            xCoord = self.getPlayerCoordX()
-            yCoord = self.getPlayerCoordY()
             crystal = self.crystals[i]
 
             if xCoord is crystal.x and yCoord is crystal.y:

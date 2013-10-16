@@ -1,23 +1,25 @@
 SHORT:
-store highscore data.txt
+safespots
+round player
+6 part lightbar
+tutoring text like this is safespot
+inform time penalty
 
 MID:
-finer light grid
+player anims - sprite?
 
 LONG:
+check on entered new tile? add coord in player/agent. 
+alert on new best time
+finer light grid
 
 MAYBE:
+agents stop/change pattern/speed?
 crystals instead of merge
-round player
 2p?
 set color alpha by distance from agent
 splashscreen
 add silver/gold time to beat
 scrolling?
-agents stop/change pattern/speed?
-check on entered new tile? add coord in player/agent. 
-player sprite
-better graphics
-alert on new best time
 
 Map ideas:
