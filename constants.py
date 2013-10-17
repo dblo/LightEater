@@ -22,6 +22,7 @@ PLAYER_RANGE    = 4
 WALL            = 0
 OPEN            = 1
 HOLE            = 2
+SAFE            = 3
 #lightMap
 UNEXPLORED      = False
 EXPLORED        = True
@@ -45,5 +46,6 @@ YELLOW       = (255, 255, 0)
 ORANGE       = (255, 120, 0)
 NOCOLOR      = (255, 255, 255, 0)
 BGCOLORS     = [WHITE, (0,102,102)]
+SAFECOLOR    = (0, 122, 122)
 FOG_COLOR    = (50,50,50)
 assert PLAYERSIZE % 2 == 0, "Playersize not even"

@@ -1,19 +1,17 @@
 SHORT:
-safespots
 round player
-tutoring text like this is safespot
-inform time penalty
-
-MID:
-player anims - sprite?
-
-LONG:
-check on entered new tile? add coord in player/agent. 
-alert on new best time
+show time, if new best. as time + penalty = tot
 finer light grid
 shw best times h:m:s:..
 
+MID:
+
+LONG:
+check on entered new tile? add coord in player/agent. 
+doc
+
 MAYBE:
+player anims - sprite?
 agents stop/change pattern/speed?
 crystals instead of merge
 2p?
@@ -23,3 +21,7 @@ add silver/gold time to beat
 scrolling?
 
 Map ideas:
+
+Bugs:
+player and light change tile at the same frame => pass through
+quarner movement

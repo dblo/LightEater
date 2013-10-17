@@ -44,12 +44,12 @@ class Game:
         self.width          = 0
         self.height         = 0
         self.maxLevel       = 4
-        self.currLevel      = 1#self.maxLevel
+        self.currLevel      = self.maxLevel
         self.bestTimes      = [[MAXTIME]*3 for i in range(self.maxLevel)]
         self.lightbarElemWid    = 0
 
         self.initWindow()
-    #    self.playMusic()
+        # self.playMusic()
         self.readBestTimes()
 
     def initWindow(self):
@@ -164,8 +164,10 @@ class Game:
                     self.level[col][row] = WALL
                 elif line[col-1] == '-':
                     self.level[col][row] = OPEN
-                else:
+                elif line[col-1] == 'H':
                     self.level[col][row] = HOLE
+                else: #S
+                    self.level[col][row] = SAFE
 
             levelDescriptLine += 1
 
@@ -228,9 +230,14 @@ class Game:
                     pygame.draw.rect(self.levelSurf, GRAY, tileRect)
                 elif self.level[col][row] == OPEN:
                     pygame.draw.rect(self.levelSurf, self.bgColor, tileRect)
-                else:
+                elif self.level[col][row] == HOLE:
                     pygame.draw.rect(self.levelSurf, BLACK, tileRect)
+                else:
+                    pygame.draw.rect(self.levelSurf, self.bgColor, tileRect)
+                    pygame.draw.circle(self.levelSurf, SAFECOLOR, 
+                        (x+TILESIZE/2, y+TILESIZE/2), TILESIZE / 4)
 
+                    
     # Return true if player died or absorbed a light
     def checkInLight(self):
         agentList = self.lightMap[self.getPlayerCoordX()][self.getPlayerCoordY()]
@@ -467,14 +474,9 @@ class Game:
             if self.fellIntoHole():
                 self.respawn()
 
-            if not DEBUG and self.checkInLight():
-                fovCounter = 0
+            for agent in self.agents:
+                agent.move()
 
-            for guard in self.agents:
-                guard.move()
-
-            # Check twice per frame to prevent the player and a light from 
-            # passing through each other due to both changing tile
             if not DEBUG and self.checkInLight():
                 fovCounter = 0
 
@@ -556,8 +558,8 @@ class Game:
         return False
 
     def movePlayer(self, player):
-        rect = pygame.Rect(player.x, player.y, PLAYERSIZE-1, PLAYERSIZE-1)
-
+        rect = pygame.Rect(player.x, player.y, PLAYERSIZE, PLAYERSIZE)
+        
         if player.movingLeft:
             if self.isWall(rect.left - PLAYERSPEED, rect.top) or \
                 self.isWall(rect.left - PLAYERSPEED, rect.bottom):
@@ -608,7 +610,7 @@ class Game:
         fog.fill(FOG_COLOR)
         self.workSurf.fill(NOCOLOR)
 
-        self.renderGuards()
+        # self.renderGuards()
         self.renderPlayer()
 
         #TODO only update tiles within player range + some
@@ -675,8 +677,12 @@ class Game:
                     [rect.midbottom[0], rect.midbottom[1]]], 0)
 
     def renderPlayer(self):
-        pygame.draw.rect(self.workSurf, BLACK, pygame.Rect(self.player.x, \
+        pygame.draw.rect(self.workSurf, WHITE, pygame.Rect(self.player.x, \
             self.player.y, PLAYERSIZE, PLAYERSIZE))
+
+        # pygame.draw.circle(self.workSurf, WHITE, (self.player.x + PLAYERSIZE/2, \
+        #     self.player.y + PLAYERSIZE/2), PLAYERSIZE/2)
+
         # pygame.draw.rect(self.workSurf, BLUE, pygame.Rect(self.player.x, \
         #     self.player.y, PLAYERSIZE, PLAYERSIZE/3))
         # pygame.draw.rect(self.workSurf, RED, pygame.Rect(self.player.x, \
@@ -685,13 +691,13 @@ class Game:
         #      self.player.y + (PLAYERSIZE*2)/3, PLAYERSIZE, PLAYERSIZE/3))
 
     def renderGuards(self): pass
-        # for guard in self.agents:
-        #     x = self.getAgentCoordX(guard.x)
-        #     y = self.getAgentCoordY(guard.y)
+        # for agent in self.agents:
+        #     x = self.getAgentCoordX(agent.x)
+        #     y = self.getAgentCoordY(agent.y)
         #
-            # if self.fovMap[x][y] is guard.color:
-            #     pygame.draw.rect(self.workSurf, self.colorDict[guard.color], \
-            #         pygame.Rect(guard.x, guard.y, GUARDSIZE, GUARDSIZE))
+            # if self.fovMap[x][y] is agent.color:
+            #     pygame.draw.rect(self.workSurf, self.colorDict[agent.color], \
+            #         pygame.Rect(agent.x, agent.y, GUARDSIZE, GUARDSIZE))
 
     # Return tilegrid x-coordinate
     def getAgentCoordX(self, pos):
@@ -771,29 +777,27 @@ class Game:
 
         xCoord = self.getPlayerCoordX()
         yCoord = self.getPlayerCoordY()
-
-        
         fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, PLAYER_RANGE, \
             markVisible, tileBlockes)
 
-        for guard in self.agents:
-            if DEBUG or self.guardFovInRange(guard):
-                xCoord = self.getAgentCoordX(guard.x)
-                yCoord = self.getAgentCoordY(guard.y)
+        for agent in self.agents:
+            if DEBUG or self.guardFovInRange(agent):
+                xCoord = self.getAgentCoordX(agent.x)
+                yCoord = self.getAgentCoordY(agent.y)
 
                 # TODO
                 def markColored(x, y):
                     if self.tileLit(x, y) and not tileBlockes(x, y) and\
-                        self.get2pDist(guard.x, guard.y, x*TILESIZE, y*TILESIZE) \
-                        / TILESIZESQ <= guard.range**2:
-                            self.lightMap[x][y].append(guard)
+                        self.get2pDist(agent.x, agent.y, x*TILESIZE, y*TILESIZE) \
+                        / TILESIZESQ <= agent.range**2:
+                            self.lightMap[x][y].append(agent)
 
-                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, guard.range, \
+                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, agent.range, \
                     markColored, tileBlockes)
 
-    def guardFovInRange(self, guard):
-        return self.getDist(guard.x, guard.y) <= \
-            ((PLAYER_RANGE + guard.range) * TILESIZE)**2
+    def guardFovInRange(self, agent):
+        return self.getDist(agent.x, agent.y) <= \
+            ((PLAYER_RANGE + agent.range) * TILESIZE)**2
 
     def quitGame(self):
         self.saveTimes()
