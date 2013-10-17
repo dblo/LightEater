@@ -8,7 +8,7 @@ from player import Player
 from agent import Agent
 from crystal import Crystal
 
-DEBUG  = True
+DEBUG  = False
 if DEBUG:
     PLAYERSPEED *= 2
 
@@ -43,7 +43,7 @@ class Game:
         self.displaySurf    = None
         self.width          = 0
         self.height         = 0
-        self.maxLevel       = 4
+        self.maxLevel       = 5
         self.currLevel      = self.maxLevel
         self.bestTimes      = [[MAXTIME]*3 for i in range(self.maxLevel)]
         self.lightbarElemWid    = 0
@@ -78,7 +78,8 @@ class Game:
         self.numRows    = int(levelDims[1]) + 2
         self.spawnPos   = (int(level[1].split()[0]), int(level[1].split()[1]))
         self.player     = Player(TILESIZE*self.spawnPos[0] + playerSpawnOffset,
-                                TILESIZE*self.spawnPos[1] + playerSpawnOffset)
+                                TILESIZE*self.spawnPos[1] + playerSpawnOffset,
+                                PLAYERSPEED, PLAYERSIZE)
         self.yMargin    = (self.height - TILESIZE * self.numRows) / 2
         self.xMargin    = (self.width - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
@@ -483,6 +484,7 @@ class Game:
             if fovCounter == 0:
                 self.updateFOV(tileBlockes, markVisible)
                 fovCounter = FOV_UPDATE_RATE
+                # print self.player.x, self.player.y
             else:
                 fovCounter -= 1
 
@@ -558,37 +560,36 @@ class Game:
         return False
 
     def movePlayer(self, player):
-        rect = pygame.Rect(player.x, player.y, PLAYERSIZE, PLAYERSIZE)
-        
+        nextPlayerX = self.player.nextX()
+        nextPlayerY = self.player.nextY()
+
         if player.movingLeft:
-            if self.isWall(rect.left - PLAYERSPEED, rect.top) or \
-                self.isWall(rect.left - PLAYERSPEED, rect.bottom):
-                player.x -= rect.left % TILESIZE
+            if (self.isWall(nextPlayerX, self.player.y) or 
+                self.isWall(nextPlayerX, self.player.y + PLAYERSIZE)):
+                self.player.clampLeft(TILESIZE)
             else:
-                player.x -= PLAYERSPEED
+                self.player.moveLeft()
 
         if player.movingRight:
-            if self.isWall(rect.right + PLAYERSPEED, rect.top) or \
-                self.isWall(rect.right + PLAYERSPEED, rect.bottom):
-                player.x += PLAYERSPEED - (rect.right + PLAYERSPEED) \
-                % TILESIZE -1
+            if (self.isWall(nextPlayerX + PLAYERSIZE, self.player.y) or 
+                self.isWall(nextPlayerX + PLAYERSIZE, self.player.y + PLAYERSIZE)):
+                self.player.clampRight(TILESIZE)
             else:
-                player.x += PLAYERSPEED
+                self.player.moveRight()
 
         if player.movingUp:
-            if self.isWall(rect.left, rect.top - PLAYERSPEED) or \
-                self.isWall(rect.right, rect.top - PLAYERSPEED):
-                player.y -= rect.top % TILESIZE
+            if (self.isWall(self.player.x, nextPlayerY) or 
+                self.isWall(self.player.x + PLAYERSIZE, nextPlayerY)):
+                self.player.clampUp(TILESIZE)
             else:
-                player.y -= PLAYERSPEED
+                self.player.moveUp()
 
         if player.movingDown:
-            if self.isWall(rect.left, rect.bottom + PLAYERSPEED) or \
-                self.isWall(rect.right, rect.bottom + PLAYERSPEED):
-                player.y += PLAYERSPEED - (rect.bottom + PLAYERSPEED) \
-                % TILESIZE -1
+            if (self.isWall(self.player.x, nextPlayerY + PLAYERSIZE) or 
+                self.isWall(self.player.x + PLAYERSIZE, nextPlayerY + PLAYERSIZE)):
+                self.player.clampDown(TILESIZE)
             else:
-                player.y += PLAYERSPEED
+                self.player.moveDown()
         
     def tileLit(self, x, y):
         if self.visibilityMap[x][y][1] is LIT:
