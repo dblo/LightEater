@@ -106,6 +106,14 @@ level 4
 -W-W-HHHH-W-H-
 ---W------W---
 
+EOF
+Level descr:
+level x
+spawnx spawny
+crystalx crystaly color ...
+agent count
+agent waypoint list color speed range
+
 level 5
 8 5
 1 1
@@ -117,11 +125,3 @@ level 5
 -W-WW-W-
 -------W
 -W-W----
-
-EOF
-Level descr:
-level x
-spawnx spawny
-crystalx crystaly color ...
-agent count
-agent waypoint list color speed range

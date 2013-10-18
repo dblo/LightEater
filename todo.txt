@@ -1,14 +1,13 @@
 SHORT:
-round player
-show time, if new best. as time + penalty = tot
 finer light grid
-shw best times h:m:s:..
 
 MID:
 
 LONG:
 check on entered new tile? add coord in player/agent. 
 doc
+shw best times h:m:s:..
+show time, if new best. as time + penalty = tot
 
 MAYBE:
 player anims - sprite?
@@ -24,4 +23,3 @@ Map ideas:
 
 Bugs:
 player and light change tile at the same frame => pass through
-quarner movement

@@ -43,7 +43,7 @@ class Game:
         self.displaySurf    = None
         self.width          = 0
         self.height         = 0
-        self.maxLevel       = 5
+        self.maxLevel       = 4
         self.currLevel      = self.maxLevel
         self.bestTimes      = [[MAXTIME]*3 for i in range(self.maxLevel)]
         self.lightbarElemWid    = 0
@@ -484,7 +484,6 @@ class Game:
             if fovCounter == 0:
                 self.updateFOV(tileBlockes, markVisible)
                 fovCounter = FOV_UPDATE_RATE
-                # print self.player.x, self.player.y
             else:
                 fovCounter -= 1
 
@@ -520,8 +519,8 @@ class Game:
             i += 1
 
     def respawn(self):
-        self.player.x = self.spawnPos[0] * TILESIZE
-        self.player.y = self.spawnPos[1] * TILESIZE
+        self.player.setPos(self.spawnPos[0] * TILESIZE,
+            self.spawnPos[1] * TILESIZE)
         self.deathCount += 1
 
     # Check if a crystal was found, if so add it to found and remove from map
@@ -611,10 +610,8 @@ class Game:
         fog.fill(FOG_COLOR)
         self.workSurf.fill(NOCOLOR)
 
-        # self.renderGuards()
         self.renderPlayer()
 
-        #TODO only update tiles within player range + some
         for row in range(self.numRows):
             for col in range(self.numCols):
                 x = col * TILESIZE
@@ -680,25 +677,6 @@ class Game:
     def renderPlayer(self):
         pygame.draw.rect(self.workSurf, WHITE, pygame.Rect(self.player.x, \
             self.player.y, PLAYERSIZE, PLAYERSIZE))
-
-        # pygame.draw.circle(self.workSurf, WHITE, (self.player.x + PLAYERSIZE/2, \
-        #     self.player.y + PLAYERSIZE/2), PLAYERSIZE/2)
-
-        # pygame.draw.rect(self.workSurf, BLUE, pygame.Rect(self.player.x, \
-        #     self.player.y, PLAYERSIZE, PLAYERSIZE/3))
-        # pygame.draw.rect(self.workSurf, RED, pygame.Rect(self.player.x, \
-        #     self.player.y + PLAYERSIZE/3, PLAYERSIZE, PLAYERSIZE/3))
-        # pygame.draw.rect(self.workSurf, (255, 255, 0), pygame.Rect(self.player.x, \
-        #      self.player.y + (PLAYERSIZE*2)/3, PLAYERSIZE, PLAYERSIZE/3))
-
-    def renderGuards(self): pass
-        # for agent in self.agents:
-        #     x = self.getAgentCoordX(agent.x)
-        #     y = self.getAgentCoordY(agent.y)
-        #
-            # if self.fovMap[x][y] is agent.color:
-            #     pygame.draw.rect(self.workSurf, self.colorDict[agent.color], \
-            #         pygame.Rect(agent.x, agent.y, GUARDSIZE, GUARDSIZE))
 
     # Return tilegrid x-coordinate
     def getAgentCoordX(self, pos):

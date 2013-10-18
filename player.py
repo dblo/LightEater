@@ -61,3 +61,6 @@ class Player:
     def clampDown(self, tileSize):
         self.y += tileSize - self.y % tileSize - self.size - 1
 
+    def setPos(self, x, y):
+        self.x = x
+        self.y = y
