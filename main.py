@@ -49,7 +49,7 @@ class Game:
         self.lightbarElemWid    = 0
 
         self.initWindow()
-        # self.playMusic()
+        #self.playMusic()
         self.readBestTimes()
 
     def initWindow(self):

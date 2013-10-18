@@ -8,7 +8,7 @@ AGENT_MAX_ALPHA = 220
 LIGHTBAR_ELEMS  = 6
 MAXTIME         = 10000
 DEATH_PENALTY   = 5
-FOG_ALPHA       = 200
+FOG_ALPHA       = 150
 FOV_UPDATE_RATE = FPS / 8
 ALPHA_FACTOR    = 16
 # Entities
@@ -47,5 +47,5 @@ ORANGE       = (255, 120, 0)
 NOCOLOR      = (255, 255, 255, 0)
 BGCOLORS     = [WHITE, (0,102,102)]
 SAFECOLOR    = (0, 122, 122)
-FOG_COLOR    = (50,50,50)
+FOG_COLOR    = BLACK#(50,50,50)
 assert PLAYERSIZE % 2 == 0, "Playersize not even"
