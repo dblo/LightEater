@@ -15,7 +15,7 @@ if DEBUG:
 class Game:
     def __init__(self):
         pygame.init()
-        pygame.display.set_caption("game")
+        pygame.display.set_caption("Light Eater")
 
         self.numRows        = 0
         self.numCols        = 0
@@ -62,46 +62,47 @@ class Game:
             self.width /= 2
         self.displaySurf = pygame.display.set_mode((self.width, self.height))
 
+    # Start playing and endlessly loop the music
     def playMusic(self):
         pygame.mixer.init()
         pygame.mixer.music.load('music.mp3')
         pygame.mixer.music.play(-1)
 
+    # Get level data from file and store in various attributes
     def loadLevel(self, levelNum):
         playerSpawnOffset = (TILESIZE - PLAYERSIZE) / 2
-
         level           = self.getLevel(levelNum)
+        
         levelDims       = level[0].split()
-
         # +2 for surrounding walls
         self.numCols    = int(levelDims[0]) + 2
         self.numRows    = int(levelDims[1]) + 2
+
         self.spawnPos   = (int(level[1].split()[0]), int(level[1].split()[1]))
+        
         self.player     = Player(TILESIZE*self.spawnPos[0] + playerSpawnOffset,
                                 TILESIZE*self.spawnPos[1] + playerSpawnOffset,
                                 PLAYERSPEED, PLAYERSIZE)
+
         self.yMargin    = (self.height - TILESIZE * self.numRows) / 2
         self.xMargin    = (self.width - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
         self.bgColor    = BGCOLORS[1]
         self.updateLightBar = True
-
         self.agents         = []
         self.crystals       = []
         self.colorsFound    = []
         self.currAlphaDict  = {}
         self.incAlphaDict   = {}
         self.deathCount     = 0
-        
+        self.lightMap       = [[None]*self.numRows for i in range(self.numCols)]
+
         crystalsList = level[2].split()
+        # Each crystal is specified by 3 ints
         numOfCrystals = len(crystalsList) / 3
-        for i in range(numOfCrystals):
-            self.crystals.append(Crystal(int(crystalsList[i*3]), \
-                int(crystalsList[i*3 + 1]), crystalsList[i*3 + 2]))
+        self.setCrystals(crystalsList, numOfCrystals)
 
-        agentCount = int(level[3])
-        agentColorDict = self.addAgents(level, agentCount)
-
+        # Determine number of colors a game has depending on number of crystals
         if numOfCrystals is 3:
             self.numOfColors = 6
         elif numOfCrystals is 2:
@@ -109,10 +110,54 @@ class Game:
         else:
             self.numOfColors = 1
 
-        self.setColorAlphas(agentColorDict)
+        agentCount = int(level[3])
+        colorCountDict = self.addAgents(level, agentCount)
+        
+        self.setColorAlphas(colorCountDict)
         self.setMap(level, agentCount)
         self.setSurfaces()
         self.setVisibilityMap()
+
+    # Read level data from file and return it as a list
+    def getLevel(self, levelNum):
+        levelFile   = open('levels.txt')
+        line        = levelFile.readline()
+        level       = []
+        levelString = "level " + str(levelNum) + "\n"
+
+        # Find block of level levelNum
+        while line != levelString:
+            line = levelFile.readline()
+            assert line != "EOF\n", "Error. Level not found on file" \
+                + str(levelNum)
+
+        # Store each line as an element in the list level
+        line = levelFile.readline()
+        while line != "\n":
+            level.append(line.strip())
+            line = levelFile.readline()
+        levelFile.close()
+        return level
+
+    def setCrystals(self, crystalsList, numOfCrystals):
+        for i in range(numOfCrystals):
+            self.crystals.append(Crystal(int(crystalsList[i*3]), \
+                int(crystalsList[i*3 + 1]), crystalsList[i*3 + 2]))
+
+    def addAgents(self, level, agentCount):
+        colorCountDict = {'B':0, 'R':0, 'Y':0, 'P':0, 'O':0, 'G':0}
+
+        for i in range(agentCount):
+            patrolList = []
+            coordList = level[4+i].split()
+
+            for j in range((len(coordList)-3)/2):
+                patrolList.append((int(coordList[j*2]), int(coordList[j*2+1])))
+            
+            self.agents.append(Agent(patrolList, coordList[-3], \
+                                 coordList[-2], coordList[-1]))
+            colorCountDict[coordList[-3]] += 1
+        return colorCountDict
 
     # Calculate by how much the alpha in the lightbar should increase when
     # the player eats a light, for that color
@@ -121,37 +166,9 @@ class Game:
         for color in agentColorDict:
             self.currAlphaDict[color] = 0
             if agentColorDict[color] is not 0:
+                # +1 to ensure alpha is >= max alpha when all lights are eaten
                 self.incAlphaDict[color]  = \
                     (alphaToFill / agentColorDict[color]) + 1
-
-    # Return level as list
-    def getLevel(self, levelNum):
-        levelFile  = open('levels.txt')
-        line       = levelFile.readline()
-        level      = []
-        levelString = "level " + str(levelNum) + "\n"
-
-        # Find block of levelNum
-        while line != levelString:
-            line = levelFile.readline()
-            assert line != "EOF\n", "Error reading level " + str(levelNum)
-
-        # Store each line as element in the list level
-        line = levelFile.readline()
-        while line != "\n":
-            level.append(line.strip())
-            line = levelFile.readline()
-        levelFile.close()
-        return level
-
-    def setSurroundingWall(self):
-        for i in range(self.numCols):
-            self.level[i][0] = WALL
-            self.level[i][self.numRows-1] = WALL
-
-        for i in range(self.numRows):
-            self.level[0][i] = WALL
-            self.level[self.numCols-1][i] = WALL
 
     def setMap(self, level, agentCount):
         self.setSurroundingWall()
@@ -169,58 +186,41 @@ class Game:
                     self.level[col][row] = HOLE
                 else: #S
                     self.level[col][row] = SAFE
-
             levelDescriptLine += 1
 
-    # Return dictionary containing number of agents of each color
-    def addAgents(self, level, agentCount):
-        colorCountDict = {'B':0, 'R':0, 'Y':0, 'P':0, 'O':0, 'G':0}
+    def setSurroundingWall(self):
+        for i in range(self.numCols):
+            self.level[i][0] = WALL
+            self.level[i][self.numRows-1] = WALL
 
-        for i in range(agentCount):
-            patrolList = []
-            coordList = level[4+i].split()
+        for i in range(self.numRows):
+            self.level[0][i] = WALL
+            self.level[self.numCols-1][i] = WALL
 
-            for j in range((len(coordList)-3)/2):
-                patrolList.append((int(coordList[j*2]), int(coordList[j*2+1])))
-            
-            self.agents.append(Agent(patrolList, coordList[-3], \
-                                 coordList[-2], coordList[-1]))
-            colorCountDict[coordList[-3]] += 1
-        return colorCountDict
-
+    # Create surfaces appropriate for the level size
     def setSurfaces(self):
-        self.lightMap       = [[None]*self.numRows for i in range(self.numCols)]
-        self.levelSurf      = pygame.Surface((self.numCols * TILESIZE, \
-            self.numRows * TILESIZE))
-        self.workSurf       = self.levelSurf.copy().convert_alpha()
-        self.lightBarSurf   = pygame.Surface((self.numCols * TILESIZE, 
-            TILESIZE)).convert()
+        levelWid = self.numCols * TILESIZE
+        levelHi  = self.numRows * TILESIZE
+        
+        self.levelSurf = pygame.Surface((levelWid, levelHi))
+        self.workSurf = self.levelSurf.copy().convert_alpha()
+        self.lightBarSurf = pygame.Surface((levelWid, TILESIZE)).convert()
 
-        self.lightbarElemWid = (TILESIZE*self.numCols) / LIGHTBAR_ELEMS
+        self.lightbarElemWid = levelWid / LIGHTBAR_ELEMS
+        # Prefer slightly too long lightbar over slightly too short
         if self.lightbarElemWid % 2 is 1:
             self.lightbarElemWid += 1
         self.lightBarElem = pygame.Surface((self.lightbarElemWid, 
             TILESIZE)).convert()
+
         self.makeLevelSurf()
         self.displaySurf.fill(BLACK)
-
-    def setVisibilityMap(self):
-        if DEBUG:
-            self.visibilityMap = [[[EXPLORED, LIT] \
-            for j in range(self.numRows)] for i in range(self.numCols)]
-        else:    
-            self.visibilityMap = [[[UNEXPLORED, UNLIT] \
-             for j in range(self.numRows)] for i in range(self.numCols)]
-
-        for i in range(self.numCols):
-            self.visibilityMap[i][0][0] = EXPLORED
-            self.visibilityMap[i][self.numRows-1][0] = EXPLORED
-
-        for i in range(self.numRows):
-            self.visibilityMap[0][i][0] = EXPLORED
-            self.visibilityMap[self.numCols-1][i][0] = EXPLORED
     
+    # Draw unchanging parts of a level to self.levelSurf
     def makeLevelSurf(self):
+        SAFE_ICON_SIZE = TILESIZE / 4
+        CENTER_OFFSET = TILESIZE / 2
+
         for row in range(self.numRows):
             for col in range(self.numCols):
                 x        = col * TILESIZE
@@ -233,12 +233,29 @@ class Game:
                     pygame.draw.rect(self.levelSurf, self.bgColor, tileRect)
                 elif self.level[col][row] == HOLE:
                     pygame.draw.rect(self.levelSurf, BLACK, tileRect)
-                else:
+                else: #Safe
                     pygame.draw.rect(self.levelSurf, self.bgColor, tileRect)
                     pygame.draw.circle(self.levelSurf, SAFECOLOR, 
-                        (x+TILESIZE/2, y+TILESIZE/2), TILESIZE / 4)
-
+                        (x+CENTER_OFFSET, y+CENTER_OFFSET), SAFE_ICON_SIZE)
                     
+    def setVisibilityMap(self):
+        if DEBUG:
+            self.visibilityMap = [[[EXPLORED, LIT] \
+            for j in range(self.numRows)] for i in range(self.numCols)]
+        else:    
+            self.visibilityMap = [[[UNEXPLORED, UNLIT] \
+             for j in range(self.numRows)] for i in range(self.numCols)]
+
+        # Make the outer wall always explored. Mainly to not allow the lightbar
+        # to be floating in space if the level is designed in a certain way
+        # for i in range(self.numCols):
+            # self.visibilityMap[i][0][0] = EXPLORED
+        #    self.visibilityMap[i][self.numRows-1][0] = EXPLORED
+
+        # for i in range(self.numRows):
+        #     self.visibilityMap[0][i][0] = EXPLORED
+        #     self.visibilityMap[self.numCols-1][i][0] = EXPLORED
+    
     # Return true if player died or absorbed a light
     def checkInLight(self):
         agentList = self.lightMap[self.getPlayerCoordX()][self.getPlayerCoordY()]
@@ -352,7 +369,7 @@ class Game:
                 if event.type == pygame.locals.QUIT:
                     self.quitGame()
 
-            text = font.render("Game made by Olle Olsson", 1, YELLOW)
+            text = font.render("Made by Olle Olsson", 1, YELLOW)
             self.displaySurf.fill(BLACK)
             self.displaySurf.blit(text, (levelTextX, levelTextY))
             pygame.display.update()

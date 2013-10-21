@@ -1,3 +1,11 @@
+Each level is stored as follows.
+Level number:
+level dims
+spawnx spawny
+crystalx crystaly color ...
+agent count
+agent waypoint list color speed range
+
 level 1
 8 5
 1 5
@@ -107,13 +115,6 @@ level 4
 ---W------W---
 
 EOF
-Level descr:
-level x
-spawnx spawny
-crystalx crystaly color ...
-agent count
-agent waypoint list color speed range
-
 level 5
 8 5
 1 1
