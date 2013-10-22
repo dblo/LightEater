@@ -44,13 +44,10 @@ class Game:
         self.width          = 0
         self.height         = 0
         self.maxLevel       = 4
-        self.currLevel      = self.maxLevel
+        self.currLevel      = self.maxLevel#1
         self.bestTimes      = [[MAXTIME]*3 for i in range(self.maxLevel)]
-        self.lightbarElemWid    = 0
-
+        self.lightbarElemWid  = 0
         self.initWindow()
-        #self.playMusic()
-        self.readBestTimes()
 
     def initWindow(self):
         self.displaySurf    = pygame.display.set_mode((0,0))
@@ -62,11 +59,253 @@ class Game:
             self.width /= 2
         self.displaySurf = pygame.display.set_mode((self.width, self.height))
 
+    # Enter main game loop
+    def run(self):
+        fpsClock = pygame.time.Clock()
+        self.playMusic()
+        self.readBestTimes()
+
+        gameMode = MENU
+        while gameMode is not QUIT:
+            self.displaySurf.fill(BLACK)
+            if gameMode is MENU:
+                gameMode = self.showMainMenu(fpsClock)
+            elif gameMode is LEVEL:
+                gameMode = self.showLevelsMenu(fpsClock)
+            elif gameMode is PLAY:
+                gameMode = self.playing(fpsClock)
+            elif gameMode is CREDITS:
+                gameMode = self.showCredits(fpsClock)
+
+    def readBestTimes(self):
+        dataFile = open('data.txt')
+        i = 0
+        for line in dataFile:
+            line = line.split()
+            self.bestTimes[i] = line
+            i += 1
+        dataFile.close()
+
     # Start playing and endlessly loop the music
     def playMusic(self):
         pygame.mixer.init()
         pygame.mixer.music.load('music.mp3')
         pygame.mixer.music.play(-1)
+
+    def showMainMenu(self, fpsClock):
+        MIN_ALPHA       = 70
+        activeChoice    = LEVEL
+        playAlpha       = MAX_ALPHA
+        creditsAlpha    = MIN_ALPHA
+        exitAlpha       = MIN_ALPHA
+        
+        while 1:
+            if activeChoice is LEVEL:
+                if playAlpha < MAX_ALPHA:
+                    playAlpha += 10
+            elif playAlpha > MIN_ALPHA:
+                    playAlpha -= 10
+
+            if activeChoice is CREDITS:
+                if creditsAlpha < MAX_ALPHA:
+                    creditsAlpha += 10
+            elif creditsAlpha > MIN_ALPHA:
+                    creditsAlpha -= 10
+            
+            if activeChoice is QUIT:
+                if exitAlpha < MAX_ALPHA:
+                    exitAlpha += 10
+            elif exitAlpha > MIN_ALPHA:
+                    exitAlpha -= 10
+
+            for event in pygame.event.get():
+                if event.type == KEYDOWN:
+                    if event.key == K_DOWN and activeChoice < QUIT:
+                        activeChoice += 1
+                    elif event.key == K_UP and activeChoice > LEVEL:
+                        activeChoice -= 1
+                    elif event.key == K_ESCAPE:
+                        return QUIT
+                    elif event.key == K_RETURN:
+                        return activeChoice
+
+                if event.type == pygame.locals.QUIT:
+                    self.quitGame()
+
+            self.renderMainMenu(playAlpha, creditsAlpha, exitAlpha)
+            fpsClock.tick(FPS)
+
+    def renderMainMenu(self, playAlpha, creditsAlpha, exitAlpha):
+        MENU_ITEM_HI    = TILESIZE * 5
+        MENU_ITEM_WID   = TILESIZE * 19
+        playPos         = (self.width / 2 - MENU_ITEM_WID, self.height / 5)
+        creditsPos      = (self.width / 2 - MENU_ITEM_WID/4, 
+                            self.height / 5 + MENU_ITEM_HI*2)
+        exitPos         = (self.width / 2 + (MENU_ITEM_WID*6)/7,
+                            self.height / 5 + MENU_ITEM_HI*4)
+        playSurf        = pygame.Surface((MENU_ITEM_WID, MENU_ITEM_HI)).convert_alpha()
+        creditsSurf     = pygame.Surface((MENU_ITEM_WID, MENU_ITEM_HI)).convert_alpha()
+        exitSurf        = pygame.Surface((MENU_ITEM_WID, MENU_ITEM_HI)).convert_alpha()
+        surf            = pygame.Surface((200, 100))
+        font            = pygame.font.Font(None,80)
+        infoFont        = pygame.font.Font(None,40)
+
+        text = font.render("Play", 1, BLUE)
+        surf.fill(BLACK)
+        surf.set_alpha(playAlpha)
+        surf.blit(text, (0, 0))
+        playSurf.blit(surf, (0,0))
+        
+        text = font.render("Credits", 1, YELLOW)
+        surf.fill(BLACK)
+        surf.set_alpha(creditsAlpha)
+        surf.blit(text, (0, 0))
+        creditsSurf.blit(surf, (0,0))
+
+        text = font.render("Exit", 1, RED)
+        surf.fill(BLACK)
+        surf.set_alpha(exitAlpha)
+        surf.blit(text, (0, 0))
+        exitSurf.blit(surf, (0,0))
+
+        infoStr = "Move with arrow keys, select with enter, back up with esc"
+        infoText = infoFont.render(infoStr, 1, PURPLE)
+        infoTextX = self.width / 2 - infoText.get_width() / 2
+        infoTextY = self.height - infoText.get_height()
+        
+        self.displaySurf.blit(infoText, (infoTextX, infoTextY))
+        self.displaySurf.blit(playSurf, playPos)
+        self.displaySurf.blit(creditsSurf, creditsPos)
+        self.displaySurf.blit(exitSurf, exitPos)
+        pygame.display.update()
+
+    def showLevelsMenu(self, fpsClock):
+        HOR_OFFSET = 150
+        VER_OFFSET = 50
+        levelTextX = self.width / 2 - 150
+        levelTextY = self.height / 2 - 20
+        font = pygame.font.Font(None, 40)
+        
+        while 1:
+            for event in pygame.event.get():
+                if event.type == KEYDOWN:
+                    if event.key == K_DOWN and self.currLevel < self.maxLevel:
+                        self.currLevel += 1
+                    elif event.key == K_UP and self.currLevel > 1:
+                        self.currLevel -= 1
+                    elif event.key == K_ESCAPE:
+                        return MENU
+                    elif event.key == K_RETURN:
+                        return PLAY
+
+                if event.type == pygame.locals.QUIT:
+                    self.quitGame()
+            self.displaySurf.fill(BLACK)
+
+            levelText = font.render("Level " + str(self.currLevel), 1, ORANGE)
+            bestTimeText = font.render("Best times: ", 1, GREEN)
+            self.displaySurf.blit(bestTimeText, 
+                (levelTextX+HOR_OFFSET, levelTextY-VER_OFFSET))
+
+            for i in range(3):
+                timeText = str(self.bestTimes[self.currLevel-1][i])
+                if timeText == str(MAXTIME):
+                    timeText = "--"
+
+                bestTimeText = font.render(timeText + " seconds", 1, GREEN)
+                self.displaySurf.blit(bestTimeText, 
+                    (levelTextX+HOR_OFFSET, levelTextY+i*VER_OFFSET))
+
+            self.displaySurf.blit(levelText, (levelTextX, levelTextY))
+            pygame.display.update()
+            fpsClock.tick(FPS)
+
+    def showCredits(self, fpsClock):
+        font = pygame.font.Font(None,40)
+        textX = self.width / 2 - 200
+        textY = self.height / 2 - 20
+        
+        while 1:
+            for event in pygame.event.get():
+                if event.type == KEYDOWN:
+                    if event.key == K_ESCAPE:
+                        return MENU
+                    elif event.key == K_RETURN:
+                        return MENU
+
+                if event.type == pygame.locals.QUIT:
+                    self.quitGame()
+
+            text = font.render("Made by Olle Olsson", 1, YELLOW)
+            self.displaySurf.fill(BLACK)
+            self.displaySurf.blit(text, (textX, textY))
+            pygame.display.update()
+            fpsClock.tick(FPS)
+
+    # Load and play a level
+    def playing(self, fpsClock):
+        fovCounter  = 0        
+        startTime   = time.time()
+        debugY      = 0
+        debugX      = 0
+        self.loadLevel(self.currLevel)
+
+        # Called by Fov alg to check if a tile blocks LoS on tiles behind it
+        def tileBlockes(x, y):
+            return self.level[x][y] == WALL
+
+        # Called by FoV algorithm for each tile that the player has LOS on and 
+        # is within manhattan distance of player.
+        # Does squaresum distance check to make the FoV area a circle rather 
+        # than square.
+        def markVisible(x, y): 
+            if self.getDist(x*TILESIZE, y*TILESIZE) / TILESIZESQ \
+                < PLAYER_RANGE_SQ:
+                self.visibilityMap[x][y] = [EXPLORED, LIT]
+
+        while 1:
+            escPressed = self.handleInput()
+            
+            if escPressed is True:
+                return LEVEL
+
+            if DEBUG:
+                if debugX != self.getPlayerCoordX() or \
+                   debugY != self.getPlayerCoordY():
+                   debugX = self.getPlayerCoordX() 
+                   debugY = self.getPlayerCoordY()
+
+            self.movePlayer(self.player)
+            
+            if self.fellIntoHole():
+                self.respawn()
+
+            for agent in self.agents:
+                agent.move()
+
+            if not DEBUG and self.checkInLight():
+                fovCounter = 0
+
+            if fovCounter == 0:
+                self.updateFOV(tileBlockes, markVisible)
+                fovCounter = FOV_UPDATE_RATE
+            else:
+                fovCounter -= 1
+
+            self.checkIfFoundCrystal()
+
+            if self.checkLevelCompleted():
+                if self.onLevelCompleted(startTime):
+                    self.currLevel += 1
+                    self.loadLevel(self.currLevel)
+                    startTime   = time.time()
+                    fovCounter  = 0  
+                else:
+                    return MENU
+
+            self.render()
+            fpsClock.tick(FPS)
+            #print fpsClock.get_fps()
 
     # Get level data from file and store in various attributes
     def loadLevel(self, levelNum):
@@ -87,6 +326,7 @@ class Game:
         self.yMargin    = (self.height - TILESIZE * self.numRows) / 2
         self.xMargin    = (self.width - TILESIZE  * self.numCols) / 2 
         self.level      = [[OPEN]*self.numRows for i in range(self.numCols)]
+        self.lightMap       = [[None]*self.numRows for i in range(self.numCols)]
         self.bgColor    = BGCOLORS[1]
         self.updateLightBar = True
         self.agents         = []
@@ -95,7 +335,6 @@ class Game:
         self.currAlphaDict  = {}
         self.incAlphaDict   = {}
         self.deathCount     = 0
-        self.lightMap       = [[None]*self.numRows for i in range(self.numCols)]
 
         crystalsList = level[2].split()
         # Each crystal is specified by 3 ints
@@ -214,7 +453,6 @@ class Game:
             TILESIZE)).convert()
 
         self.makeLevelSurf()
-        self.displaySurf.fill(BLACK)
     
     # Draw unchanging parts of a level to self.levelSurf
     def makeLevelSurf(self):
@@ -269,7 +507,7 @@ class Game:
                 self.absorbLight(agent)
         return True
 
-    # Return true if all agents of given color has been absorbed
+    # Return true if all agents of the given color has been absorbed
     def colorMaxed(self, color):
         return self.currAlphaDict[color] >= AGENT_MAX_ALPHA
 
@@ -277,247 +515,31 @@ class Game:
     def absorbLight(self, agent):
         absColor = agent.color
         self.currAlphaDict[absColor] += self.incAlphaDict[absColor]
-
-        if self.numOfColors is 6:
-            self.checkMaxedColors(absColor,1)
-        elif self.numOfColors is 3:
-            self.checkMaxedColors(absColor, 2)
+        
+        if self.colorMaxed(absColor):
+            self.checkMaxedColors(absColor)
         
         self.agents.remove(agent)
         self.updateLightBar = True
 
     # Check if 2 colors were maxed and should merge into a new color
-    def checkMaxedColors(self, absColor, elemWid):
-        self.checkMaxedColorsHelper(absColor, ['B', 'Y'], 'G', elemWid)
-        self.checkMaxedColorsHelper(absColor, ['B', 'R'], 'P', elemWid)
-        self.checkMaxedColorsHelper(absColor, ['R', 'Y'], 'O', elemWid)
+    def checkMaxedColors(self, absColor):
+        self.checkMaxedColorsHelper(absColor, ['B', 'Y'], 'G')
+        self.checkMaxedColorsHelper(absColor, ['B', 'R'], 'P')
+        self.checkMaxedColorsHelper(absColor, ['R', 'Y'], 'O')
 
     # compColors is a list of two colors that merge into newColor
-    def checkMaxedColorsHelper(self, absColor, compColors, newColor, elemWid):
+    def checkMaxedColorsHelper(self, absColor, compColors, newColor):
         if absColor in compColors:
             if self.colorMaxed(compColors[0]) and \
                 self.colorMaxed(compColors[1]):
-                self.colorsFound += list(newColor)*elemWid
                 self.currAlphaDict[newColor] = BASE_ALPHA
                 
-    def run(self):
-        fpsClock = pygame.time.Clock()
-        gameMode = MENU
-
-        while gameMode is not QUIT:
-            self.displaySurf.fill(BLACK)
-            if gameMode is MENU:
-                gameMode = self.showMenu(fpsClock)
-            elif gameMode is LEVEL:
-                gameMode = self.showLevelsMenu(fpsClock)
-            elif gameMode is PLAY:
-                gameMode = self.playing(fpsClock)
-            elif gameMode is CREDITS:
-                gameMode = self.showCredits(fpsClock)
-
-    def showLevelsMenu(self, fpsClock):
-        font = pygame.font.Font(None,40)
-        levelTextX = self.width / 2 - 150
-        levelTextY = self.height / 2 - 20
-        
-        while 1:
-            for event in pygame.event.get():
-                if event.type == KEYDOWN:
-                    if event.key == K_DOWN and self.currLevel < self.maxLevel:
-                        self.currLevel += 1
-                    elif event.key == K_UP and self.currLevel > 1:
-                        self.currLevel -= 1
-                    elif event.key == K_ESCAPE:
-                        return MENU
-                    elif event.key == K_RETURN:
-                        return PLAY
-
-                if event.type == pygame.locals.QUIT:
-                    self.quitGame()
-            self.displaySurf.fill(BLACK)
-
-            levelText = font.render("Level " + str(self.currLevel), 1, ORANGE)
-            bestTimeText = font.render("Best times: ", 1, GREEN)
-            self.displaySurf.blit(bestTimeText, (levelTextX+150, levelTextY-50))
-
-            for i in range(3):
-                timeText = str(self.bestTimes[self.currLevel-1][i])
-                if timeText == str(MAXTIME):
-                    timeText = "--"
-
-                bestTimeText = font.render(timeText + " seconds", 1, GREEN)
-                self.displaySurf.blit(bestTimeText, (levelTextX+150, \
-                                                        levelTextY+i*50))
-
-            self.displaySurf.blit(levelText, (levelTextX, levelTextY))
-            pygame.display.update()
-            fpsClock.tick(FPS)
-
-    def showCredits(self, fpsClock):
-        font = pygame.font.Font(None,40)
-        levelTextX = self.width / 2 - 200
-        levelTextY = self.height / 2 - 20
-        
-        while 1:
-            for event in pygame.event.get():
-                if event.type == KEYDOWN:
-                    if event.key == K_ESCAPE:
-                        return MENU
-                    elif event.key == K_RETURN:
-                        return MENU
-
-                if event.type == pygame.locals.QUIT:
-                    self.quitGame()
-
-            text = font.render("Made by Olle Olsson", 1, YELLOW)
-            self.displaySurf.fill(BLACK)
-            self.displaySurf.blit(text, (levelTextX, levelTextY))
-            pygame.display.update()
-            fpsClock.tick(FPS)
-
-    def showMenu(self, fpsClock):
-        MAXALPHA        = 260
-        MINALPHA        = 40
-        activeChoice    = LEVEL
-        playAlpha       = MAXALPHA
-        creditsAlpha    = MINALPHA
-        exitAlpha       = MINALPHA
-        
-        while 1:
-            if activeChoice is LEVEL:
-                if playAlpha < MAXALPHA:
-                    playAlpha += 10
-            elif playAlpha > MINALPHA:
-                    playAlpha -= 10
-
-            if activeChoice is CREDITS:
-                if creditsAlpha < MAXALPHA:
-                    creditsAlpha += 10
-            elif creditsAlpha > MINALPHA:
-                    creditsAlpha -= 10
-            
-            if activeChoice is QUIT:
-                if exitAlpha < MAXALPHA:
-                    exitAlpha += 10
-            elif exitAlpha > MINALPHA:
-                    exitAlpha -= 10
-
-            for event in pygame.event.get():
-                if event.type == KEYDOWN:
-                    if event.key == K_DOWN and activeChoice < QUIT:
-                        activeChoice += 1
-                    elif event.key == K_UP and activeChoice > LEVEL:
-                        activeChoice -= 1
-                    elif event.key == K_ESCAPE:
-                        return QUIT
-                    elif event.key == K_RETURN:
-                        return activeChoice
-
-                if event.type == pygame.locals.QUIT:
-                    self.quitGame()
-
-            self.renderMainMenu(playAlpha, creditsAlpha, exitAlpha)
-            fpsClock.tick(FPS)
-
-    def renderMainMenu(self, playAlpha, creditsAlpha, exitAlpha):
-        hi              = TILESIZE * 5
-        wid             = TILESIZE * 19
-        playPos         = (self.width / 2 - wid , self.height / 5)
-        creditsPos      = (self.width / 2 - wid/4, self.height / 5 + hi*2)
-        exitPos         = (self.width / 2 + (wid*6)/7, self.height / 5 + hi*4)
-        playSurf        = pygame.Surface((wid, hi)).convert_alpha()
-        creditsSurf     = pygame.Surface((wid, hi)).convert_alpha()
-        exitSurf        = pygame.Surface((wid, hi)).convert_alpha()
-        surf            = pygame.Surface((200, 100))
-        font            = pygame.font.Font(None,80)
-        infoFont        = pygame.font.Font(None,40)
-
-        text = font.render("Play", 1, BLUE)
-        surf.fill(BLACK)
-        surf.set_alpha(playAlpha)
-        surf.blit(text, (0, 0))
-        playSurf.blit(surf, (0,0))
-        
-        text = font.render("Credits", 1, YELLOW)
-        surf.fill(BLACK)
-        surf.set_alpha(creditsAlpha)
-        surf.blit(text, (0, 0))
-        creditsSurf.blit(surf, (0,0))
-
-        text = font.render("Exit", 1, RED)
-        surf.fill(BLACK)
-        surf.set_alpha(exitAlpha)
-        surf.blit(text, (0, 0))
-        exitSurf.blit(surf, (0,0))
-
-        infoText = infoFont.render("Move with arrow keys, select with enter, back up with esc", 
-            1, PURPLE)
-        infoTextX = self.width / 2 - infoText.get_width() / 2
-        infoTextY = self.height - infoText.get_height()
-        self.displaySurf.blit(infoText, (infoTextX, infoTextY))
-        self.displaySurf.blit(playSurf, playPos)
-        self.displaySurf.blit(creditsSurf, creditsPos)
-        self.displaySurf.blit(exitSurf, exitPos)
-        pygame.display.update()
-
-    def playing(self, fpsClock):
-        fovCounter = 0        
-        self.loadLevel(self.currLevel)
-
-        def tileBlockes(x, y): 
-            return self.level[x][y] == WALL
-
-        # Player has LOS on (x,y)
-        def markVisible(x, y): 
-            if self.getDist(x*TILESIZE, y*TILESIZE) / TILESIZESQ \
-                < PLAYER_RANGE**2:
-                self.visibilityMap[x][y] = [EXPLORED, LIT]
-
-        startTime = time.time()
-        debugY = 0
-        debugX = 0
-
-        while 1:
-            quit = self.handleInput()
-            if quit is True:
-                return LEVEL
-            if DEBUG:
-                if debugX != self.getPlayerCoordX() or \
-                   debugY != self.getPlayerCoordY():
-                   debugX = self.getPlayerCoordX() 
-                   debugY = self.getPlayerCoordY()
-
-            self.movePlayer(self.player)
-            
-            if self.fellIntoHole():
-                self.respawn()
-
-            for agent in self.agents:
-                agent.move()
-
-            if not DEBUG and self.checkInLight():
-                fovCounter = 0
-
-            if fovCounter == 0:
-                self.updateFOV(tileBlockes, markVisible)
-                fovCounter = FOV_UPDATE_RATE
-            else:
-                fovCounter -= 1
-
-            self.checkIfFoundCrystal()
-
-            if self.checkLevelCompleted():
-                newTime = float((int((time.time() - startTime)*100)))/100.0
-                self.checkIfRecordTime(newTime)
-                if self.currLevel < self.maxLevel:
-                    self.currLevel += 1
-                    self.loadLevel(self.currLevel)
+                # Add color elemts in lightbar depeneding on num of colors in lvl
+                if self.numOfColors == MAX_NUM_COLORS:
+                    self.colorsFound += list(newColor)
                 else:
-                    return MENU
-
-            self.render()
-            fpsClock.tick(FPS)
-            #print fpsClock.get_fps()
+                    self.colorsFound += list(newColor)*2
 
     # If time is new top3 time, store it and move other times appropriately
     def checkIfRecordTime(self, time):
@@ -536,8 +558,9 @@ class Game:
             i += 1
 
     def respawn(self):
-        self.player.setPos(self.spawnPos[0] * TILESIZE,
-            self.spawnPos[1] * TILESIZE)
+        offset = (TILESIZE - PLAYERSIZE) / 2
+        self.player.setPos(self.spawnPos[0] * TILESIZE + offset,
+            self.spawnPos[1] * TILESIZE + offset)
         self.deathCount += 1
 
     # Check if a crystal was found, if so add it to found and remove from map
@@ -550,6 +573,8 @@ class Game:
             crystal = self.crystals[i]
 
             if xCoord is crystal.x and yCoord is crystal.y:
+                # The more colors exist in the map, the smaller the area of a 
+                # color in the lightbar
                 if self.numOfColors is 6:
                     self.colorsFound.append(crystal.color)
                 elif self.numOfColors is 3:
@@ -703,11 +728,11 @@ class Game:
     def getAgentCoordY(self, pos):
         return (pos + HALF_GUARD_SIZE) / TILESIZE
 
-    # Return tilegrid x-coordinate
+    # Return tilegrid x-coordinate of player center
     def getPlayerCoordX(self):
         return (self.player.x + HALFPLAYERSIZE) / TILESIZE
 
-    # Return tilegrid y-coordinate
+    # Return tilegrid y-coordinate of player center
     def getPlayerCoordY(self):
         return (self.player.y + HALFPLAYERSIZE) / TILESIZE
 
@@ -783,13 +808,13 @@ class Game:
 
                 # TODO
                 def markColored(x, y):
-                    if self.tileLit(x, y) and not tileBlockes(x, y) and\
+                    if self.tileLit(x, y) and not tileBlockes(x, y) and \
                         self.get2pDist(agent.x, agent.y, x*TILESIZE, y*TILESIZE) \
                         / TILESIZESQ <= agent.range**2:
                             self.lightMap[x][y].append(agent)
 
-                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, agent.range, \
-                    markColored, tileBlockes)
+                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, 
+                    agent.range, markColored, tileBlockes)
 
     def guardFovInRange(self, agent):
         return self.getDist(agent.x, agent.y) <= \
@@ -810,14 +835,15 @@ class Game:
         dataFile.write(output)
         dataFile.close()
 
-    def readBestTimes(self):
-        dataFile = open('data.txt')
-        i = 0
-        for line in dataFile:
-            line = line.split()
-            self.bestTimes[i] = line
-            i += 1
-        dataFile.close()
+    # Return true if next level should be started immediatly
+    def onLevelCompleted(self, startTime):
+        # Truncate to 2 decimals
+        newTime = float((int((time.time() - startTime)*100)))/100.0
+        
+        self.checkIfRecordTime(newTime)
+        if self.currLevel < self.maxLevel:
+            return True
+        return False
 
 def main():
     g = Game()
