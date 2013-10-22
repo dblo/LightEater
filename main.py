@@ -20,7 +20,8 @@ class Game:
         self.numRows        = 0
         self.numCols        = 0
         self.player         = None
-        self.level          = 0
+        # The level stored as a 2d matrix
+        self.level          = None
         self.spawnPos       = (0,0)
         self.yMargin        = 0
         self.xMargin        = 0
@@ -28,12 +29,22 @@ class Game:
         self.deathCount     = 0
         self.agents         = []
         self.crystals       = []
-        self.visibilityMap  = []
-        self.lightMap       = []
+        # A 2d matrix of same size as level where each element indicates weather 
+        # that tile has been explored or not and is currently visible or not
+        self.visibilityMap  = None
+        # A 2d matrix of same size as level where each elem is a list containing
+        # the agents currently lighting up that tile
+        self.lightMap       = None
         self.colorDict      = {'R' : RED, 'B' : BLUE, 'P' : PURPLE,
                                 'Y' : YELLOW, 'G' : GREEN, 'O' : ORANGE}
+        # Holds the alpha of all colors in a level, indicating progress
+        # and determines the alpha of colors in the lightbar
         self.currAlphaDict  = {}
+        # Holds the amound that the alpha of a color should increase with
+        # when a light of that color is eaten
         self.incAlphaDict   = {}
+        # Colors that are safe to interavt with, also the colors currently in
+        # the lightbar
         self.colorsFound    = []
         self.bgColor        = None
         self.updateLightBar = False
@@ -46,6 +57,7 @@ class Game:
         self.maxLevel       = 4
         self.currLevel      = self.maxLevel#1
         self.bestTimes      = [[MAXTIME]*3 for i in range(self.maxLevel)]
+        # The lightbar is made up of 6 elements with lightbarElemWid width
         self.lightbarElemWid  = 0
         self.initWindow()
 
@@ -401,7 +413,7 @@ class Game:
     # Calculate by how much the alpha in the lightbar should increase when
     # the player eats a light, for that color
     def setColorAlphas(self, agentColorDict):
-        alphaToFill = AGENT_MAX_ALPHA - BASE_ALPHA
+        alphaToFill = MAX_ALPHA - BASE_ALPHA
         for color in agentColorDict:
             self.currAlphaDict[color] = 0
             if agentColorDict[color] is not 0:
@@ -509,7 +521,7 @@ class Game:
 
     # Return true if all agents of the given color has been absorbed
     def colorMaxed(self, color):
-        return self.currAlphaDict[color] >= AGENT_MAX_ALPHA
+        return self.currAlphaDict[color] >= MAX_ALPHA
 
     # Remove light and update lightbar color alpha
     def absorbLight(self, agent):
@@ -535,7 +547,7 @@ class Game:
                 self.colorMaxed(compColors[1]):
                 self.currAlphaDict[newColor] = BASE_ALPHA
                 
-                # Add color elemts in lightbar depeneding on num of colors in lvl
+                # Add color elems to lightbar depeneding on num of colors in lvl
                 if self.numOfColors == MAX_NUM_COLORS:
                     self.colorsFound += list(newColor)
                 else:
@@ -642,14 +654,14 @@ class Game:
             return True
         return False
 
-    def tileColored(self, x, y):
-        if self.lightMap[x][y]:
-            return True
-        return False
+    # def tileColored(self, x, y):
+    #     if self.lightMap[x][y]:
+    #         return True
+    #     return False
 
     def render(self):
-        fog = pygame.Surface((TILESIZE, TILESIZE))
-        fog.fill(FOG_COLOR)
+        tileSurf = pygame.Surface((TILESIZE, TILESIZE))
+        tileSurf.fill(FOG_COLOR)
         self.workSurf.fill(NOCOLOR)
 
         self.renderPlayer()
@@ -662,27 +674,27 @@ class Game:
                 tileRect = pygame.Rect(x, y, TILESIZE, TILESIZE)
              
                 if self.tileLit(col, row):
-                    if self.tileColored(col, row):
-                        for agent in self.lightMap[col][row]:
-                            alpha =  MAX_ALPHA / ((self.get2pDist(x, y, agent.x, agent.y) \
-                                / TILESIZESQ) + 1)
+                    for agent in self.lightMap[col][row]:
+                        agentDist = self.get2pDist(x, y, agent.x, agent.y)
+                        # +1 means agentDist is 0 gives full alpha
+                        alpha = MAX_ALPHA / (agentDist + 1)
 
-                            fog.fill(self.colorDict[agent.color])
-                            fog.set_alpha(alpha)
-                            self.workSurf.blit(fog, (x, y))
-                            fog.fill(FOG_COLOR)
+                        tileSurf.fill(self.colorDict[agent.color])
+                        tileSurf.set_alpha(alpha)
+                        self.workSurf.blit(tileSurf, (x, y))
+                        tileSurf.fill(FOG_COLOR)
 
-                    # Draw heavier fog the further a lit area is from player
+                    # Draw heavier fog the further the area is from the player
                     if not DEBUG:
                         alpha = (self.getDist(x, y) / TILESIZESQ)*ALPHA_FACTOR
                         if alpha > FOG_ALPHA:
-                            fog.set_alpha(FOG_ALPHA)
+                            tileSurf.set_alpha(FOG_ALPHA)
                         else:
-                            fog.set_alpha(alpha)
-                        self.workSurf.blit(fog, (x, y))
+                            tileSurf.set_alpha(alpha)
+                        self.workSurf.blit(tileSurf, (x, y))
                 elif self.tileExplored(col, row):
-                    fog.set_alpha(FOG_ALPHA)
-                    self.workSurf.blit(fog, (x, y))
+                    tileSurf.set_alpha(FOG_ALPHA)
+                    self.workSurf.blit(tileSurf, (x, y))
                 else:
                     pygame.draw.rect(self.workSurf, FOG_COLOR, tileRect)
 
@@ -694,7 +706,6 @@ class Game:
         self.displaySurf.blit(self.levelSurf, (self.xMargin, self.yMargin))
         self.displaySurf.blit(self.workSurf, (self.xMargin, self.yMargin))
         pygame.display.update()
-
 
     def renderLightbar(self):
         self.lightBarSurf.fill(BLACK)
@@ -710,11 +721,12 @@ class Game:
     def renderCrystals(self):
         for crystal in self.crystals:
             if self.tileLit(crystal.x, crystal.y):
-                rect = pygame.Rect(crystal.x*TILESIZE, crystal.y*TILESIZE, TILESIZE, TILESIZE)
+                rect = pygame.Rect(crystal.x*TILESIZE, crystal.y*TILESIZE, 
+                    TILESIZE, TILESIZE)
                 pygame.draw.polygon(self.workSurf, self.colorDict[crystal.color], \
                     [[rect.midleft[0], rect.midleft[1]], \
-                    [rect.midtop[0], rect.midtop[1]], [rect.midright[0], rect.midright[1]], \
-                    [rect.midbottom[0], rect.midbottom[1]]], 0)
+                    [rect.midtop[0], rect.midtop[1]], [rect.midright[0], 
+                    rect.midright[1]], [rect.midbottom[0], rect.midbottom[1]]], 0)
 
     def renderPlayer(self):
         pygame.draw.rect(self.workSurf, WHITE, pygame.Rect(self.player.x, \
@@ -742,7 +754,7 @@ class Game:
         return abs(self.player.x - x)**2 + abs(self.player.y - y)**2
 
     def get2pDist(self, x, y, x1, y1):
-        return abs(x1 - x)**2 + abs(y1 - y)**2
+        return (abs(x1 - x)**2 + abs(y1 - y)**2) / TILESIZESQ
 
     def setFogAlpha(self, fog, dist):
         alpha = (dist / (TILESIZE**2)) * 7
@@ -810,7 +822,7 @@ class Game:
                 def markColored(x, y):
                     if self.tileLit(x, y) and not tileBlockes(x, y) and \
                         self.get2pDist(agent.x, agent.y, x*TILESIZE, y*TILESIZE) \
-                        / TILESIZESQ <= agent.range**2:
+                        <= agent.range**2:
                             self.lightMap[x][y].append(agent)
 
                 fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, 
