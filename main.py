@@ -63,13 +63,15 @@ class Game:
 
     def initWindow(self):
         self.displaySurf    = pygame.display.set_mode((0,0))
-        self.width          = 1600#self.displaySurf.get_width()
-        self.height         = 900#self.displaySurf.get_height() # TODO
+        self.width          = self.displaySurf.get_width()
+        self.height         = self.displaySurf.get_height() # TODO
 
-        # Workaround for linux >1 monitors
-        if self.width > self.height * 2:
-            self.width /= 2
-        self.displaySurf = pygame.display.set_mode((self.width, self.height))
+        # Workaround for linux >1 monitors in windowed mode
+        # if self.width > self.height * 2:
+        #     self.width /= 2
+ 
+        self.displaySurf = pygame.display.set_mode((self.width, self.height), 
+            pygame.FULLSCREEN)
 
     # Enter main game loop
     def run(self):
@@ -465,6 +467,9 @@ class Game:
             TILESIZE)).convert()
 
         self.makeLevelSurf()
+        
+        # Fill black to hide previous level when loading a new one        
+        self.displaySurf.fill(BLACK)
     
     # Draw unchanging parts of a level to self.levelSurf
     def makeLevelSurf(self):
@@ -653,11 +658,6 @@ class Game:
         if self.visibilityMap[x][y][0] is EXPLORED:
             return True
         return False
-
-    # def tileColored(self, x, y):
-    #     if self.lightMap[x][y]:
-    #         return True
-    #     return False
 
     def render(self):
         tileSurf = pygame.Surface((TILESIZE, TILESIZE))
