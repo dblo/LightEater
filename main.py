@@ -66,9 +66,6 @@ class Game:
         self.width          = self.displaySurf.get_width()
         self.height         = self.displaySurf.get_height()
 
-        # Workaround for linux >1 monitors
-        if self.width > self.height * 2:
-            self.width /= 2
         self.displaySurf = pygame.display.set_mode((self.width, self.height),
             pygame.FULLSCREEN)
 
