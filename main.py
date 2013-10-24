@@ -55,7 +55,7 @@ class Game:
         self.width          = 0
         self.height         = 0
         self.maxLevel       = 4
-        self.currLevel      = self.maxLevel#1
+        self.currLevel      = 1
         self.bestTimes      = [[MAXTIME]*3 for i in range(self.maxLevel)]
         # The lightbar is made up of 6 elements with lightbarElemWid width
         self.lightbarElemWid  = 0
@@ -64,13 +64,12 @@ class Game:
     def initWindow(self):
         self.displaySurf    = pygame.display.set_mode((0,0))
         self.width          = self.displaySurf.get_width()
-        self.height         = self.displaySurf.get_height() # TODO
+        self.height         = self.displaySurf.get_height()
 
-        # Workaround for linux >1 monitors in windowed mode
-        # if self.width > self.height * 2:
-        #     self.width /= 2
- 
-        self.displaySurf = pygame.display.set_mode((self.width, self.height), 
+        # Workaround for linux >1 monitors
+        if self.width > self.height * 2:
+            self.width /= 2
+        self.displaySurf = pygame.display.set_mode((self.width, self.height),
             pygame.FULLSCREEN)
 
     # Enter main game loop
@@ -463,13 +462,10 @@ class Game:
         # Prefer slightly too long lightbar over slightly too short
         if self.lightbarElemWid % 2 is 1:
             self.lightbarElemWid += 1
-        self.lightBarElem = pygame.Surface((self.lightbarElemWid, 
+        self.lightBarElemSurf = pygame.Surface((self.lightbarElemWid, 
             TILESIZE)).convert()
 
         self.makeLevelSurf()
-        
-        # Fill black to hide previous level when loading a new one        
-        self.displaySurf.fill(BLACK)
     
     # Draw unchanging parts of a level to self.levelSurf
     def makeLevelSurf(self):
@@ -534,19 +530,19 @@ class Game:
         self.currAlphaDict[absColor] += self.incAlphaDict[absColor]
         
         if self.colorMaxed(absColor):
-            self.checkMaxedColors(absColor)
+            self.checkShouldMix(absColor)
         
         self.agents.remove(agent)
         self.updateLightBar = True
 
     # Check if 2 colors were maxed and should merge into a new color
-    def checkMaxedColors(self, absColor):
-        self.checkMaxedColorsHelper(absColor, ['B', 'Y'], 'G')
-        self.checkMaxedColorsHelper(absColor, ['B', 'R'], 'P')
-        self.checkMaxedColorsHelper(absColor, ['R', 'Y'], 'O')
+    def checkShouldMix(self, absColor):
+        self.checkShouldMixHelper(absColor, ['B', 'Y'], 'G')
+        self.checkShouldMixHelper(absColor, ['B', 'R'], 'P')
+        self.checkShouldMixHelper(absColor, ['R', 'Y'], 'O')
 
     # compColors is a list of two colors that merge into newColor
-    def checkMaxedColorsHelper(self, absColor, compColors, newColor):
+    def checkShouldMixHelper(self, absColor, compColors, newColor):
         if absColor in compColors:
             if self.colorMaxed(compColors[0]) and \
                 self.colorMaxed(compColors[1]):
@@ -567,7 +563,8 @@ class Game:
                 # new top3 time found, move others down in record list
                 j = 2
                 while j > i:
-                    self.bestTimes[self.currLevel-1][j] = self.bestTimes[self.currLevel-1][j-1]
+                    self.bestTimes[self.currLevel-1][j] = \
+                    self.bestTimes[self.currLevel-1][j-1]
                     j -= 1
 
                 self.bestTimes[self.currLevel-1][i] = time
@@ -659,6 +656,11 @@ class Game:
             return True
         return False
 
+    # def tileColored(self, x, y):
+    #     if self.lightMap[x][y]:
+    #         return True
+    #     return False
+
     def render(self):
         tileSurf = pygame.Surface((TILESIZE, TILESIZE))
         tileSurf.fill(FOG_COLOR)
@@ -711,9 +713,9 @@ class Game:
         self.lightBarSurf.fill(BLACK)
         offset = 0
         for color in self.colorsFound:
-            self.lightBarElem.set_alpha(self.currAlphaDict[color])
-            self.lightBarElem.fill(self.colorDict[color])
-            self.lightBarSurf.blit(self.lightBarElem, (offset*self.lightbarElemWid, 0))
+            self.lightBarElemSurf.set_alpha(self.currAlphaDict[color])
+            self.lightBarElemSurf.fill(self.colorDict[color])
+            self.lightBarSurf.blit(self.lightBarElemSurf, (offset*self.lightbarElemWid, 0))
             offset += 1
 
         self.displaySurf.blit(self.lightBarSurf, (self.xMargin, self.yMargin - TILESIZE))
@@ -825,7 +827,7 @@ class Game:
                         <= agent.range**2:
                             self.lightMap[x][y].append(agent)
 
-                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows, 
+                fov.fieldOfView(xCoord, yCoord, self.numCols, self.numRows,
                     agent.range, markColored, tileBlockes)
 
     def guardFovInRange(self, agent):
