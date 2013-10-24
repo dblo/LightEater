@@ -8,10 +8,6 @@ from player import Player
 from agent import Agent
 from crystal import Crystal
 
-DEBUG  = False
-if DEBUG:
-    PLAYERSPEED *= 2
-
 class Game:
     def __init__(self):
         pygame.init()
@@ -256,8 +252,6 @@ class Game:
     def playing(self, fpsClock):
         fovCounter  = 0        
         startTime   = time.time()
-        debugY      = 0
-        debugX      = 0
         self.loadLevel(self.currLevel)
 
         # Called by Fov alg to check if a tile blocks LoS on tiles behind it
@@ -275,15 +269,8 @@ class Game:
 
         while 1:
             escPressed = self.handleInput()
-            
             if escPressed is True:
                 return LEVEL
-
-            if DEBUG:
-                if debugX != self.getPlayerCoordX() or \
-                   debugY != self.getPlayerCoordY():
-                   debugX = self.getPlayerCoordX() 
-                   debugY = self.getPlayerCoordY()
 
             self.movePlayer(self.player)
             
@@ -293,7 +280,7 @@ class Game:
             for agent in self.agents:
                 agent.move()
 
-            if not DEBUG and self.checkInLight():
+            if self.checkInLight():
                 fovCounter = 0
 
             if fovCounter == 0:
@@ -487,22 +474,8 @@ class Game:
                         (x+CENTER_OFFSET, y+CENTER_OFFSET), SAFE_ICON_SIZE)
                     
     def setVisibilityMap(self):
-        if DEBUG:
-            self.visibilityMap = [[[EXPLORED, LIT] \
-            for j in range(self.numRows)] for i in range(self.numCols)]
-        else:    
-            self.visibilityMap = [[[UNEXPLORED, UNLIT] \
-             for j in range(self.numRows)] for i in range(self.numCols)]
-
-        # Make the outer wall always explored. Mainly to not allow the lightbar
-        # to be floating in space if the level is designed in a certain way
-        # for i in range(self.numCols):
-            # self.visibilityMap[i][0][0] = EXPLORED
-        #    self.visibilityMap[i][self.numRows-1][0] = EXPLORED
-
-        # for i in range(self.numRows):
-        #     self.visibilityMap[0][i][0] = EXPLORED
-        #     self.visibilityMap[self.numCols-1][i][0] = EXPLORED
+        self.visibilityMap = [[[UNEXPLORED, UNLIT] \
+         for j in range(self.numRows)] for i in range(self.numCols)]
     
     # Return true if player died or absorbed a light
     def checkInLight(self):
@@ -653,11 +626,6 @@ class Game:
             return True
         return False
 
-    # def tileColored(self, x, y):
-    #     if self.lightMap[x][y]:
-    #         return True
-    #     return False
-
     def render(self):
         tileSurf = pygame.Surface((TILESIZE, TILESIZE))
         tileSurf.fill(FOG_COLOR)
@@ -675,22 +643,21 @@ class Game:
                 if self.tileLit(col, row):
                     for agent in self.lightMap[col][row]:
                         agentDist = self.get2pDist(x, y, agent.x, agent.y)
-                        # +1 means agentDist is 0 gives full alpha
+                        # +1 means agentDist = 0 gives full alpha
                         alpha = MAX_ALPHA / (agentDist + 1)
 
                         tileSurf.fill(self.colorDict[agent.color])
                         tileSurf.set_alpha(alpha)
                         self.workSurf.blit(tileSurf, (x, y))
-                        tileSurf.fill(FOG_COLOR)
 
                     # Draw heavier fog the further the area is from the player
-                    if not DEBUG:
-                        alpha = (self.getDist(x, y) / TILESIZESQ)*ALPHA_FACTOR
-                        if alpha > FOG_ALPHA:
-                            tileSurf.set_alpha(FOG_ALPHA)
-                        else:
-                            tileSurf.set_alpha(alpha)
-                        self.workSurf.blit(tileSurf, (x, y))
+                    tileSurf.fill(FOG_COLOR)
+                    alpha = (self.getDist(x, y) / TILESIZESQ)*ALPHA_FACTOR
+                    if alpha > FOG_ALPHA:
+                        tileSurf.set_alpha(FOG_ALPHA)
+                    else:
+                        tileSurf.set_alpha(alpha)
+                    self.workSurf.blit(tileSurf, (x, y))
                 elif self.tileExplored(col, row):
                     tileSurf.set_alpha(FOG_ALPHA)
                     self.workSurf.blit(tileSurf, (x, y))
@@ -794,15 +761,10 @@ class Game:
 
     # Set all tiles to be unlit and uncolored
     def resetFOV(self):
-        if DEBUG:
-            for col in range(self.numCols):
-                for row in range(self.numRows):
-                    self.lightMap[col][row] = []
-        else:
-            for col in range(self.numCols):
-                for row in range(self.numRows):
-                    self.visibilityMap[col][row][1] = UNLIT
-                    self.lightMap[col][row] = []
+        for col in range(self.numCols):
+            for row in range(self.numRows):
+                self.visibilityMap[col][row][1] = UNLIT
+                self.lightMap[col][row] = []
 
     def updateFOV(self, tileBlockes, markVisible):
         self.resetFOV()
@@ -813,11 +775,11 @@ class Game:
             markVisible, tileBlockes)
 
         for agent in self.agents:
-            if DEBUG or self.guardFovInRange(agent):
+            if self.guardFovInRange(agent):
                 xCoord = self.getAgentCoordX(agent.x)
                 yCoord = self.getAgentCoordY(agent.y)
 
-                # TODO
+                # Called by fov alg for every tile that an agent cast light on.
                 def markColored(x, y):
                     if self.tileLit(x, y) and not tileBlockes(x, y) and \
                         self.get2pDist(agent.x, agent.y, x*TILESIZE, y*TILESIZE) \
