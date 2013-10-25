@@ -68,7 +68,7 @@ class Game:
     # Enter main game loop
     def run(self):
         fpsClock = pygame.time.Clock()
-        self.playMusic()
+        #self.playMusic() #TODO ENABLE
         self.readBestTimes()
 
         gameMode = MENU
@@ -134,6 +134,8 @@ class Game:
                         return QUIT
                     elif event.key == K_RETURN:
                         return activeChoice
+                    elif event.key == pygame.K_SPACE: # TODO REMOVE
+                        self.playMusic()
 
                 if event.type == pygame.locals.QUIT:
                     self.quitGame()
