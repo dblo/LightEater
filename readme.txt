@@ -1,4 +1,4 @@
-Light Eater is a small adventure/puzzle game build for TDDD23 Game design class.
+Light Eater is an adventure/puzzle game build for the TDDD23 Game design class at Linköping University, Sweden.
 
 Screencast available at: http://www.youtube.com/watch?v=GNjKAEKWYws
 
